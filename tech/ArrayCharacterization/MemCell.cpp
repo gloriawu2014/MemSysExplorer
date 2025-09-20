@@ -808,33 +808,33 @@ void MemCell::PrintCell()
 			cout << "Access Type: None Access Device" << endl;
 		}
 	} else if (memCellType == SRAM) {
-		cout << "SRAM Cell Access Transistor Width: " << widthAccessCMOS << "F" << endl;
-		cout << "SRAM Cell NMOS Width: " << widthSRAMCellNMOS << "F" << endl;
-		cout << "SRAM Cell PMOS Width: " << widthSRAMCellPMOS << "F" << endl;
-		cout << "SRAM Cell Peripheral Roadmap: " << tech->deviceRoadmap << endl;
-		cout << "SRAM Cell Peripheral Node: " << tech->featureSizeInNano << "nm" << endl;
-		cout << "SRAM Cell VDD: " << tech->vdd << "V" << endl;
-		cout << "SRAM Cell VPP: " << tech->vpp << "V" << endl;
+		cout << "Access Transistor Width: " << widthAccessCMOS << "F" << endl;
+		cout << "NMOS Width: " << widthSRAMCellNMOS << "F" << endl;
+		cout << "PMOS Width: " << widthSRAMCellPMOS << "F" << endl;
+		cout << "Peripheral Roadmap: " << tech->deviceRoadmap << endl;
+		cout << "Peripheral Node: " << tech->featureSizeInNano << "nm" << endl;
+		cout << "VDD: " << tech->vdd << "V" << endl;
+		cout << "VPP: " << tech->vpp << "V" << endl;
 		cout << "Temperature: " << cell->temperature << "K" << endl;
 	} else if (memCellType == DRAM || memCellType == eDRAM) {
-		cout << "DRAM Cell Access Transistor Width: " << widthAccessCMOS << "F" << endl;
-		cout << "DRAM Cell Peripheral Roadmap: " << tech->deviceRoadmap << endl;
-		cout << "DRAM Cell Peripheral Node: " << tech->featureSizeInNano << "nm" << endl;
-		cout << "DRAM Cell VDD: " << tech->vdd << "V" << endl;
-		cout << "DRAM Cell VPP: " << tech->vpp << "V" << endl;
-		cout << "DRAM Cell VPP: " << tech->vpp << "V" << endl;
+		cout << "Access Transistor Width: " << widthAccessCMOS << "F" << endl;
+		cout << "Peripheral Roadmap: " << tech->deviceRoadmap << endl;
+		cout << "Peripheral Node: " << tech->featureSizeInNano << "nm" << endl;
+		cout << "VDD: " << tech->vdd << "V" << endl;
+		cout << "VPP: " << tech->vpp << "V" << endl;
+		cout << "VPP: " << tech->vpp << "V" << endl;
 		cout << "Temperature: " << cell->temperature << "K" << endl;
 	} else if (memCellType == eDRAM3T || memCellType == eDRAM3T333) {
-		cout << "3T DRAM Cell Write Access Transistor Width: " << widthAccessCMOS << "F" << endl;
-		cout << "3T DRAM Cell Read Access Transistor Width: " << widthAccessCMOSR << "F" << endl;
-		cout << "3T DRAM Cell Peripheral Roadmap: " << tech->deviceRoadmap << endl;
-		cout << "3T DRAM Cell Write Access Roadmap: " << techW->deviceRoadmap << endl;
-		cout << "3T DRAM Cell Read Access Roadmap: " << techR->deviceRoadmap << endl;
-		cout << "3T DRAM Cell Peripheral Node: " << tech->featureSizeInNano << "nm" << endl;
-		cout << "3T DRAM Cell Write Access Node: " << techW->featureSizeInNano << "nm" << endl;
-		cout << "3T DRAM Cell Read Access Node: " << techR->featureSizeInNano << "nm" << endl;
-		cout << "3T DRAM Cell VDD: " << tech->vdd << "V" << endl;
-		cout << "3T DRAM Cell VPP: " << techW->vpp << "V" << endl;
+		cout << "Write Access Transistor Width: " << widthAccessCMOS << "F" << endl;
+		cout << "Read Access Transistor Width: " << widthAccessCMOSR << "F" << endl;
+		cout << "Peripheral Roadmap: " << tech->deviceRoadmap << endl;
+		cout << "Write Access Roadmap: " << techW->deviceRoadmap << endl;
+		cout << "Read Access Roadmap: " << techR->deviceRoadmap << endl;
+		cout << "Peripheral Node: " << tech->featureSizeInNano << "nm" << endl;
+		cout << "Write Access Node: " << techW->featureSizeInNano << "nm" << endl;
+		cout << "Read Access Node: " << techR->featureSizeInNano << "nm" << endl;
+		cout << "VDD: " << tech->vdd << "V" << endl;
+		cout << "VPP: " << techW->vpp << "V" << endl;
 		cout << "Temperature: " << cell->temperature << "K" << endl;
 	} else if (memCellType == SLCNAND) {
 		cout << "Pass Voltage       : " << flashPassVoltage << "V" << endl;

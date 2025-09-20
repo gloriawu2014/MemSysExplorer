@@ -625,7 +625,7 @@ void InputParameter::PrintInputParameter() {
 		cout << "Content Addressable Memory" << endl;
 	}
 
-	cout << "Capacity   : ";
+	cout << "Capacity: ";
 	if (capacity < 1024 * 1024)
 		cout << capacity / 1024 << "KB" << endl;
 	else if (capacity < 1024 * 1024 * 1024)

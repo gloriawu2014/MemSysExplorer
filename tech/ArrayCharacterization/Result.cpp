@@ -326,7 +326,10 @@ void Result::print() {
 	cout << "    |--- Predecoder Latency = " << TO_SECOND(bank->mat.predecoderLatency) << endl;
 	cout << "    |--- Subarray Latency   = " << TO_SECOND(bank->mat.subarray.readLatency) << endl;
 	cout << "       |--- Row Decoder Latency = " << TO_SECOND(bank->mat.subarray.rowDecoder.readLatency) << endl;
-	cout << "       |--- Bitline Latency     = " << TO_SECOND(bank->mat.subarray.bitlineDelay) << endl;
+	if (cell->memCellType != eDRAM3T333)
+		cout << "       |--- Bitline Latency     = " << TO_SECOND(bank->mat.subarray.bitlineDelay) << endl;
+	else
+		cout << "       |--- Bitline Latency     = " << TO_SECOND(bank->mat.subarray.bitlineDelayR) << endl;
 	if (inputParameter->internalSensing)
 		cout << "       |--- Senseamp Latency    = " << TO_SECOND(bank->mat.subarray.senseAmp.readLatency) << endl;
 	cout << "       |--- Mux Latency         = " << TO_SECOND(bank->mat.subarray.bitlineMux.readLatency
@@ -386,7 +389,11 @@ void Result::print() {
 			cout << "       |--- Write Pulse Duration = " << TO_SECOND(cell->resetPulse) << endl;	// MRAM reset/set is equal
 		cout << "       |--- Row Decoder Latency = " << TO_SECOND(bank->mat.subarray.rowDecoder.writeLatency) << endl;
 		cout << "       |--- Charge Latency      = " << TO_SECOND(bank->mat.subarray.chargeLatency) << endl;
-	}
+		if (cell->memCellType != eDRAM3T333)
+			cout << "       |--- Bitline Latency     = " << TO_SECOND(bank->mat.subarray.bitlineDelay) << endl;
+		else
+			cout << "       |--- Bitline Latency     = " << TO_SECOND(bank->mat.subarray.bitlineDelayW) << endl;
+		}
 
 	//Qing: subarray buffer latency
 	cout << "- Subarray Buf R/W Latency  = " << TO_SECOND(bank->mat.subarray.subarrayBuffer.readLatency) << endl;
