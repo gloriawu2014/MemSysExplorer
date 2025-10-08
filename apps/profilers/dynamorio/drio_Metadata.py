@@ -1,3 +1,4 @@
+import os
 from profilers.BaseMetadata import BaseMetadata
 
 class DrioMetadata(BaseMetadata):
@@ -9,7 +10,9 @@ class DrioMetadata(BaseMetadata):
         fixed version string representing the DynamoRIO tool version.
         """
         self.dynamorio_version = "11.3.0"
-        super().__init__()
+        # Pass the current profiler directory to BaseMetadata
+        current_profiler_dir = os.path.dirname(os.path.abspath(__file__))
+        super().__init__(profiler_dir=current_profiler_dir)
 
     def as_dict(self):
         """

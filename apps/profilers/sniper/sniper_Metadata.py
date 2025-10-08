@@ -17,7 +17,9 @@ class SniperMetadata(BaseMetadata):
         self.sniper_config_path = os.path.join(config_path, "sim.cfg")
         self.simulated_cpu_types = set()
         self.sniper_config_contents = {}
-        super().__init__()
+        # Pass the current profiler directory to BaseMetadata
+        current_profiler_dir = os.path.dirname(os.path.abspath(__file__))
+        super().__init__(profiler_dir=current_profiler_dir)
         self._parse_config_file()
 
     def _parse_config_file(self):
