@@ -55,6 +55,8 @@ build_client:
 	cd $(CURDIR)/build && \
 		export DYNAMORIO_HOME=$(DYNAMORIO_BUILD)/cmake && \
 		export PATH=$(PROTOBUF_C_PREFIX)/bin:$(PROTOBUF_PREFIX)/bin:$$PATH && \
+		export LD_LIBRARY_PATH=$(PROTOBUF_C_PREFIX)/lib:$(PROTOBUF_PREFIX)/lib:$$LD_LIBRARY_PATH && \
+		export LIBRARY_PATH=$(PROTOBUF_C_PREFIX)/lib:$(PROTOBUF_PREFIX)/lib:$$LIBRARY_PATH && \
 		export PKG_CONFIG_PATH=$(PROTOBUF_C_PREFIX)/lib/pkgconfig:$(PROTOBUF_PREFIX)/lib/pkgconfig:$$PKG_CONFIG_PATH && \
 		export CMAKE_PREFIX_PATH=$(PROTOBUF_C_PREFIX):$(PROTOBUF_PREFIX):$(DYNAMORIO_BUILD)/cmake:$$CMAKE_PREFIX_PATH && \
 		sh build.sh

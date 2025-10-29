@@ -48,8 +48,14 @@ function(add_client name source_file_list extension_list)
     # Link the common library
     target_link_libraries(${name} profiler_common)
 
-    # Link libm with plain signature to match DynamoRIO's usage
+    # Add RPATH so the shared library can find dependencies at runtime
     if(UNIX AND NOT APPLE)
+        set_target_properties(${name} PROPERTIES
+            BUILD_RPATH_USE_ORIGIN ON
+            INSTALL_RPATH "\$ORIGIN/../lib"
+        )
+
+        # Link libm with plain signature to match DynamoRIO's usage
         target_link_libraries(${name} m)
     endif()
 endfunction()
