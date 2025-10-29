@@ -4,6 +4,11 @@ PATCH_DIR := $(APPS_HOME)/patches
 ENV_DIR := $(APPS_HOME)/tools
 JSON_FILE := $(APPS_HOME)/built_profilers.json
 
+# Define third-party library directories
+THIRD_PARTY_DIR := $(APPS_HOME)/third_party
+PROTOBUF_PREFIX := $(THIRD_PARTY_DIR)/protobuf
+PROTOBUF_C_PREFIX := $(THIRD_PARTY_DIR)/protobuf-c
+
 # Define profiler directories
 COMMON_DIR := $(APPS_HOME)/profilers/common
 DYNAMORIO_DIR := $(APPS_HOME)/profilers/dynamorio
@@ -13,7 +18,7 @@ NVBIT_DIR := $(APPS_HOME)/profilers/nvbit
 PERF_DIR := $(APPS_HOME)/profilers/perf
 DOCS_DIR := $(APPS_HOME)/docs
 
-.PHONY: all common dynamorio sniper nvbit perf ncu docs clean clean_common clean_dynamorio clean_sniper clean_nvbit clean_perf clean_docs clean_pycache clean_builds
+.PHONY: all common dynamorio sniper nvbit perf ncu docs clean clean_common clean_dynamorio clean_sniper clean_nvbit clean_perf clean_docs clean_pycache clean_builds protobuf protobuf-c clean_protobuf
 
 # Default target: build everything
 all: common dynamorio sniper nvbit perf ncu docs
@@ -29,11 +34,63 @@ init_json:
 update_json:
 	@jq --arg key "$(PROFILER)" '.[$$key] = true' "$(JSON_FILE)" > "$(JSON_FILE).tmp" && mv "$(JSON_FILE).tmp" "$(JSON_FILE)"
 
+# Build protobuf from source (if not on system)
+protobuf:
+	@echo "        Building Protobuf from source        "
+	@if ! pkg-config --exists protobuf 2>/dev/null; then \
+		echo "Protobuf not found on system, building from source..."; \
+		mkdir -p $(THIRD_PARTY_DIR)/build/protobuf; \
+		if [ ! -d "$(THIRD_PARTY_DIR)/protobuf-src" ]; then \
+			cd $(THIRD_PARTY_DIR) && git clone --depth 1 --branch v21.12 https://github.com/protocolbuffers/protobuf.git protobuf-src; \
+		fi; \
+		cd $(THIRD_PARTY_DIR)/build/protobuf && \
+		cmake $(THIRD_PARTY_DIR)/protobuf-src/cmake \
+			-DCMAKE_INSTALL_PREFIX=$(PROTOBUF_PREFIX) \
+			-Dprotobuf_BUILD_TESTS=OFF \
+			-Dprotobuf_BUILD_EXAMPLES=OFF \
+			-Dprotobuf_WITH_ZLIB=OFF \
+			-DCMAKE_BUILD_TYPE=Release && \
+		make -j$$(nproc) && \
+		make install; \
+		echo "Protobuf built and installed to $(PROTOBUF_PREFIX)"; \
+	else \
+		echo "Protobuf found on system, skipping build"; \
+	fi
+
+# Build protobuf-c from source (if not on system)
+protobuf-c: protobuf
+	@echo "      Building Protobuf-C from source      "
+	@if ! pkg-config --exists libprotobuf-c 2>/dev/null; then \
+		echo "Protobuf-C not found on system, building from source..."; \
+		mkdir -p $(THIRD_PARTY_DIR)/build/protobuf-c; \
+		if [ ! -d "$(THIRD_PARTY_DIR)/protobuf-c-src" ]; then \
+			cd $(THIRD_PARTY_DIR) && git clone --depth 1 --branch v1.4.1 https://github.com/protobuf-c/protobuf-c.git protobuf-c-src; \
+		fi; \
+		cd $(THIRD_PARTY_DIR)/build/protobuf-c && \
+		PKG_CONFIG_PATH=$(PROTOBUF_PREFIX)/lib/pkgconfig:$$PKG_CONFIG_PATH \
+		cmake $(THIRD_PARTY_DIR)/protobuf-c-src/build-cmake \
+			-DCMAKE_INSTALL_PREFIX=$(PROTOBUF_C_PREFIX) \
+			-DCMAKE_PREFIX_PATH=$(PROTOBUF_PREFIX) \
+			-DProtobuf_DIR=$(PROTOBUF_PREFIX)/lib/cmake/protobuf \
+			-DBUILD_PROTO3=ON \
+			-DBUILD_TESTS=OFF \
+			-DCMAKE_BUILD_TYPE=Release && \
+		make -j$$(nproc) && \
+		make install; \
+		echo "Protobuf-C built and installed to $(PROTOBUF_C_PREFIX)"; \
+	else \
+		echo "Protobuf-C found on system, skipping build"; \
+	fi
+
 # Build common library
-common:
+common: protobuf protobuf-c
 	@echo "        Building Common Library          "
 	@mkdir -p $(COMMON_DIR)/build
-	cd $(COMMON_DIR)/build && cmake .. && make
+	@cd $(COMMON_DIR)/build && \
+		PKG_CONFIG_PATH=$(PROTOBUF_C_PREFIX)/lib/pkgconfig:$(PROTOBUF_PREFIX)/lib/pkgconfig:$$PKG_CONFIG_PATH \
+		CMAKE_PREFIX_PATH=$(PROTOBUF_C_PREFIX):$(PROTOBUF_PREFIX):$$CMAKE_PREFIX_PATH \
+		cmake -DProtobuf_DIR=$(PROTOBUF_PREFIX)/lib/cmake/protobuf .. && \
+		make
 	@echo "Common library built successfully."
 
 dynamorio: init_json common
@@ -71,9 +128,15 @@ docs:
 	@echo "Documentation built at $(DOCS_DIR)/_build/html"
 
 # Clean all profilers and docs
-clean: clean_common clean_dynamorio clean_sniper clean_nvbit clean_perf clean_docs clean_pycache clean_builds
+clean: clean_common clean_dynamorio clean_sniper clean_nvbit clean_perf clean_docs clean_pycache clean_builds clean_protobuf
 	@rm -f $(JSON_FILE)
 	@echo "         Cleaning Completed                "
+
+# Clean protobuf builds
+clean_protobuf:
+	@echo "Cleaning Protobuf builds..."
+	@rm -rf $(THIRD_PARTY_DIR)/build
+	@echo "Protobuf build directories cleaned (source kept for faster rebuild)."
 
 # Clean individual profilers
 clean_common:

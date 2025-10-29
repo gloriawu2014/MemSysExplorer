@@ -1,84 +1,14 @@
 # Common library for shared profiler utilities
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.7)
 project(profiler_common C CXX)
 
-include(FetchContent)
-
-# Try to find protobuf first
+# Try to find protobuf and protobuf-c
+# Note: The Makefile will build these from source if not on system
+# and set CMAKE_PREFIX_PATH appropriately
 find_package(Protobuf QUIET)
-
-# If protobuf not found, build from source
-if(NOT Protobuf_FOUND)
-    message(STATUS "Protobuf not found on system - building from source")
-
-    FetchContent_Declare(
-        protobuf
-        GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-        GIT_TAG v21.12  # Use a stable version
-        SOURCE_SUBDIR cmake
-    )
-
-    # Configure protobuf build options
-    set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(protobuf_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(protobuf_WITH_ZLIB OFF CACHE BOOL "" FORCE)
-    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "" FORCE)
-
-    FetchContent_MakeAvailable(protobuf)
-
-    # Set variables to match find_package behavior
-    set(Protobuf_FOUND TRUE)
-    set(Protobuf_LIBRARIES protobuf::libprotobuf)
-    set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
-    set(Protobuf_PROTOC_EXECUTABLE $<TARGET_FILE:protobuf::protoc>)
-
-    # Create an alias for the protoc executable for custom commands
-    add_executable(protoc_executable IMPORTED)
-    set_target_properties(protoc_executable PROPERTIES
-        IMPORTED_LOCATION ${Protobuf_PROTOC_EXECUTABLE}
-    )
-
-    message(STATUS "Built protobuf from source")
-endif()
-
-# Try to find protobuf-c
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
     pkg_check_modules(PROTOBUF_C QUIET libprotobuf-c)
-endif()
-
-# If protobuf-c not found, build from source
-if(NOT PROTOBUF_C_FOUND)
-    message(STATUS "Protobuf-c not found on system - building from source")
-
-    FetchContent_Declare(
-        protobuf_c
-        GIT_REPOSITORY https://github.com/protobuf-c/protobuf-c.git
-        GIT_TAG v1.4.1  # Use a stable version
-    )
-
-    # Configure protobuf-c build options
-    set(BUILD_PROTO3 ON CACHE BOOL "" FORCE)
-    set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
-
-    FetchContent_MakeAvailable(protobuf_c)
-
-    # Set variables to match pkg-config behavior
-    set(PROTOBUF_C_FOUND TRUE)
-    set(PROTOBUF_C_LIBRARIES protobuf-c)
-    set(PROTOBUF_C_INCLUDE_DIRS ${protobuf_c_SOURCE_DIR})
-
-    # Find or use the built protoc-c compiler
-    find_program(PROTOC_C_EXECUTABLE protoc-c
-        HINTS ${protobuf_c_BINARY_DIR}
-        PATHS ${protobuf_c_BINARY_DIR}/protoc-c
-    )
-
-    if(NOT PROTOC_C_EXECUTABLE)
-        set(PROTOC_C_EXECUTABLE ${protobuf_c_BINARY_DIR}/protoc-c/protoc-gen-c)
-    endif()
-
-    message(STATUS "Built protobuf-c from source")
 endif()
 
 # Always build the core utilities
@@ -92,20 +22,14 @@ set(CORE_SOURCES
 # Add protobuf-c sources if available (for C profilers like DynamoRIO)
 set(PROTOBUF_C_SOURCES "")
 if(PROTOBUF_C_FOUND)
-    # Determine protoc-c command
-    if(PROTOC_C_EXECUTABLE)
-        set(PROTOC_C_CMD ${PROTOC_C_EXECUTABLE})
-    else()
-        set(PROTOC_C_CMD protoc-c)
-    endif()
-
     # Custom command to generate C protobuf code
+    # Use protoc-c wrapper which handles both system and locally-built installations
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/memory_trace.pb-c.c
                ${CMAKE_CURRENT_BINARY_DIR}/memory_trace.pb-c.h
                ${CMAKE_CURRENT_BINARY_DIR}/timeseries_metrics.pb-c.c
                ${CMAKE_CURRENT_BINARY_DIR}/timeseries_metrics.pb-c.h
-        COMMAND ${PROTOC_C_CMD} --c_out=${CMAKE_CURRENT_BINARY_DIR}
+        COMMAND protoc-c --c_out=${CMAKE_CURRENT_BINARY_DIR}
                 --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
                 ${CMAKE_CURRENT_SOURCE_DIR}/proto/memory_trace.proto
                 ${CMAKE_CURRENT_SOURCE_DIR}/proto/timeseries_metrics.proto
@@ -119,42 +43,23 @@ if(PROTOBUF_C_FOUND)
         ${CMAKE_CURRENT_BINARY_DIR}/timeseries_metrics.pb-c.c
     )
 
-    message(STATUS "Protobuf-c available - including C protobuf writers")
+    message(STATUS "Protobuf-c found - including C protobuf writers")
+else()
+    message(WARNING "Protobuf-c not found - C protobuf support disabled")
+    message(WARNING "Install protobuf-c or run 'make protobuf-c' from apps directory")
+
+    # Still build protobuf_writer.c with stubs
+    set(PROTOBUF_C_SOURCES src/protobuf_writer.c)
 endif()
 
 # Add Python protobuf sources if available (for tools)
 set(PROTOBUF_PYTHON_SOURCES "")
 set(PROTOBUF_PYTHON_FILES "")
 if(Protobuf_FOUND)
-    # Determine protoc command
-    if(TARGET protobuf::protoc)
-        set(PROTOC_CMD $<TARGET_FILE:protobuf::protoc>)
-    elseif(Protobuf_PROTOC_EXECUTABLE)
-        set(PROTOC_CMD ${Protobuf_PROTOC_EXECUTABLE})
-    else()
-        set(PROTOC_CMD protoc)
-    endif()
-
     # Generate C++ files from proto (for C++ tools if needed)
-    if(TARGET protobuf::protoc)
-        # Use the built-from-source protoc
-        add_custom_command(
-            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/memory_trace.pb.cc
-                   ${CMAKE_CURRENT_BINARY_DIR}/memory_trace.pb.h
-            COMMAND protobuf::protoc --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
-                    --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
-                    ${CMAKE_CURRENT_SOURCE_DIR}/proto/memory_trace.proto
-            DEPENDS proto/memory_trace.proto protobuf::protoc
-            COMMENT "Generating C++ protobuf code"
-        )
-        set(PROTO_SRCS ${CMAKE_CURRENT_BINARY_DIR}/memory_trace.pb.cc)
-        set(PROTO_HDRS ${CMAKE_CURRENT_BINARY_DIR}/memory_trace.pb.h)
-    else()
-        # Use system protoc via CMake's protobuf_generate_cpp
-        protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS
-            proto/memory_trace.proto
-        )
-    endif()
+    protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS
+        proto/memory_trace.proto
+    )
 
     set(PROTOBUF_PYTHON_SOURCES
         src/memory_trace.cpp
@@ -165,7 +70,7 @@ if(Protobuf_FOUND)
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/proto/memory_trace_pb2.py
                ${CMAKE_CURRENT_SOURCE_DIR}/proto/timeseries_metrics_pb2.py
-        COMMAND ${PROTOC_CMD} --python_out=${CMAKE_CURRENT_SOURCE_DIR}/proto
+        COMMAND protoc --python_out=${CMAKE_CURRENT_SOURCE_DIR}/proto
                 --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
                 ${CMAKE_CURRENT_SOURCE_DIR}/proto/memory_trace.proto
                 ${CMAKE_CURRENT_SOURCE_DIR}/proto/timeseries_metrics.proto
@@ -178,7 +83,10 @@ if(Protobuf_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/proto/timeseries_metrics_pb2.py
     )
 
-    message(STATUS "Protobuf available - including Python protobuf support")
+    message(STATUS "Protobuf found - including Python protobuf support")
+else()
+    message(WARNING "Protobuf not found - Python protobuf support disabled")
+    message(WARNING "Install protobuf or run 'make protobuf' from apps directory")
 endif()
 
 # Create static library for common utilities
@@ -206,31 +114,14 @@ target_include_directories(profiler_common PUBLIC
 
 # Link libraries
 if(PROTOBUF_C_FOUND)
-    if(TARGET protobuf-c)
-        # Built from source - link target directly
-        target_link_libraries(profiler_common protobuf-c)
-        target_include_directories(profiler_common PUBLIC
-            ${protobuf_c_SOURCE_DIR}
-            ${protobuf_c_BINARY_DIR}
-        )
-    else()
-        # System installation - use pkg-config variables
-        target_include_directories(profiler_common PUBLIC ${PROTOBUF_C_INCLUDE_DIRS})
-        target_link_libraries(profiler_common ${PROTOBUF_C_LIBRARIES})
-    endif()
+    target_include_directories(profiler_common PUBLIC ${PROTOBUF_C_INCLUDE_DIRS})
+    target_link_libraries(profiler_common ${PROTOBUF_C_LIBRARIES})
     target_compile_definitions(profiler_common PUBLIC HAVE_PROTOBUF_C=1)
 endif()
 
 if(Protobuf_FOUND)
-    if(TARGET protobuf::libprotobuf)
-        # Built from source or modern CMake config - link target directly
-        target_link_libraries(profiler_common protobuf::libprotobuf)
-        target_include_directories(profiler_common PUBLIC ${protobuf_SOURCE_DIR}/src)
-    else()
-        # System installation with legacy variables
-        target_link_libraries(profiler_common ${Protobuf_LIBRARIES})
-        target_include_directories(profiler_common PUBLIC ${Protobuf_INCLUDE_DIRS})
-    endif()
+    target_link_libraries(profiler_common ${Protobuf_LIBRARIES})
+    target_include_directories(profiler_common PUBLIC ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(profiler_common PUBLIC HAVE_PROTOBUF=1)
 endif()
 
