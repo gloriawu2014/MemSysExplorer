@@ -17,6 +17,74 @@ export SNIPER_ROOT="$APPS_HOME/profilers/snipersim"
 export PIN_HOME="$SNIPER_ROOT/pin_kit"
 export PYTHON_HOME="/usr/sup/Python-$PYTHON_VERSION"
 
+# Setup protobuf/protobuf-c if built locally in third_party
+setup_protobuf() {
+    local THIRD_PARTY_DIR="$APPS_HOME/third_party"
+    local PROTOBUF_PREFIX="$THIRD_PARTY_DIR/protobuf"
+    local PROTOBUF_C_PREFIX="$THIRD_PARTY_DIR/protobuf-c"
+
+    # Check if locally-built protobuf exists
+    if [[ -d "$PROTOBUF_PREFIX" ]]; then
+        echo "Found locally-built protobuf at $PROTOBUF_PREFIX"
+
+        # Add protobuf bin to PATH
+        export PATH="$PROTOBUF_PREFIX/bin:$PATH"
+
+        # Add protobuf libraries
+        if [[ -z "$LD_LIBRARY_PATH" ]]; then
+            export LD_LIBRARY_PATH="$PROTOBUF_PREFIX/lib"
+        else
+            export LD_LIBRARY_PATH="$PROTOBUF_PREFIX/lib:$LD_LIBRARY_PATH"
+        fi
+
+        # Add protobuf pkgconfig
+        if [[ -z "$PKG_CONFIG_PATH" ]]; then
+            export PKG_CONFIG_PATH="$PROTOBUF_PREFIX/lib/pkgconfig"
+        else
+            export PKG_CONFIG_PATH="$PROTOBUF_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
+        fi
+
+        # Add to CMAKE_PREFIX_PATH
+        if [[ -z "$CMAKE_PREFIX_PATH" ]]; then
+            export CMAKE_PREFIX_PATH="$PROTOBUF_PREFIX"
+        else
+            export CMAKE_PREFIX_PATH="$PROTOBUF_PREFIX:$CMAKE_PREFIX_PATH"
+        fi
+    fi
+
+    # Check if locally-built protobuf-c exists
+    if [[ -d "$PROTOBUF_C_PREFIX" ]]; then
+        echo "Found locally-built protobuf-c at $PROTOBUF_C_PREFIX"
+
+        # Add protobuf-c bin to PATH
+        export PATH="$PROTOBUF_C_PREFIX/bin:$PATH"
+
+        # Add protobuf-c libraries
+        if [[ -z "$LD_LIBRARY_PATH" ]]; then
+            export LD_LIBRARY_PATH="$PROTOBUF_C_PREFIX/lib"
+        else
+            export LD_LIBRARY_PATH="$PROTOBUF_C_PREFIX/lib:$LD_LIBRARY_PATH"
+        fi
+
+        # Add protobuf-c pkgconfig
+        if [[ -z "$PKG_CONFIG_PATH" ]]; then
+            export PKG_CONFIG_PATH="$PROTOBUF_C_PREFIX/lib/pkgconfig"
+        else
+            export PKG_CONFIG_PATH="$PROTOBUF_C_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
+        fi
+
+        # Add to CMAKE_PREFIX_PATH
+        if [[ -z "$CMAKE_PREFIX_PATH" ]]; then
+            export CMAKE_PREFIX_PATH="$PROTOBUF_C_PREFIX"
+        else
+            export CMAKE_PREFIX_PATH="$PROTOBUF_C_PREFIX:$CMAKE_PREFIX_PATH"
+        fi
+    fi
+}
+
+# Setup protobuf before environment-specific setup
+setup_protobuf
+
 # Function to display available options
 show_options() {
     echo -e "Available environments:\n  1) DynamoRIO\n  2) CUDA\n  3) Sniper\n  Enter the corresponding number to set up the environment."

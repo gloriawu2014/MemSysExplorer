@@ -15,6 +15,65 @@ setenv SNIPER_ROOT "$APPS_HOME/profilers/snipersim"
 setenv PYTHON_HOME "/usr/sup/Python-$PYTHON_VERSION"
 setenv PIN_HOME "/r/tcal/work/dnguye/lib/pin"
 
+# Setup protobuf/protobuf-c if built locally in third_party
+# Check if locally-built protobuf exists
+if (-d "$APPS_HOME/third_party/protobuf") then
+    echo "Found locally-built protobuf at $APPS_HOME/third_party/protobuf"
+
+    # Add protobuf bin to PATH
+    setenv PATH "$APPS_HOME/third_party/protobuf/bin":$PATH
+
+    # Add protobuf libraries
+    if (! $?LD_LIBRARY_PATH) then
+        setenv LD_LIBRARY_PATH "$APPS_HOME/third_party/protobuf/lib"
+    else
+        setenv LD_LIBRARY_PATH "$APPS_HOME/third_party/protobuf/lib":$LD_LIBRARY_PATH
+    endif
+
+    # Add protobuf pkgconfig
+    if (! $?PKG_CONFIG_PATH) then
+        setenv PKG_CONFIG_PATH "$APPS_HOME/third_party/protobuf/lib/pkgconfig"
+    else
+        setenv PKG_CONFIG_PATH "$APPS_HOME/third_party/protobuf/lib/pkgconfig":$PKG_CONFIG_PATH
+    endif
+
+    # Add to CMAKE_PREFIX_PATH
+    if (! $?CMAKE_PREFIX_PATH) then
+        setenv CMAKE_PREFIX_PATH "$APPS_HOME/third_party/protobuf"
+    else
+        setenv CMAKE_PREFIX_PATH "$APPS_HOME/third_party/protobuf":$CMAKE_PREFIX_PATH
+    endif
+endif
+
+# Check if locally-built protobuf-c exists
+if (-d "$APPS_HOME/third_party/protobuf-c") then
+    echo "Found locally-built protobuf-c at $APPS_HOME/third_party/protobuf-c"
+
+    # Add protobuf-c bin to PATH
+    setenv PATH "$APPS_HOME/third_party/protobuf-c/bin":$PATH
+
+    # Add protobuf-c libraries
+    if (! $?LD_LIBRARY_PATH) then
+        setenv LD_LIBRARY_PATH "$APPS_HOME/third_party/protobuf-c/lib"
+    else
+        setenv LD_LIBRARY_PATH "$APPS_HOME/third_party/protobuf-c/lib":$LD_LIBRARY_PATH
+    endif
+
+    # Add protobuf-c pkgconfig
+    if (! $?PKG_CONFIG_PATH) then
+        setenv PKG_CONFIG_PATH "$APPS_HOME/third_party/protobuf-c/lib/pkgconfig"
+    else
+        setenv PKG_CONFIG_PATH "$APPS_HOME/third_party/protobuf-c/lib/pkgconfig":$PKG_CONFIG_PATH
+    endif
+
+    # Add to CMAKE_PREFIX_PATH
+    if (! $?CMAKE_PREFIX_PATH) then
+        setenv CMAKE_PREFIX_PATH "$APPS_HOME/third_party/protobuf-c"
+    else
+        setenv CMAKE_PREFIX_PATH "$APPS_HOME/third_party/protobuf-c":$CMAKE_PREFIX_PATH
+    endif
+endif
+
 #setenv PATH "/usr/lib64/ccache:$PATH"
 #echo "Testing Environmental Path"
 #echo $GCC_PATH $NCU_HOME $SNIPER_ROOT $PIN_HOME $PYTHON_HOME

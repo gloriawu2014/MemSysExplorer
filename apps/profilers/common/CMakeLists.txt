@@ -22,19 +22,29 @@ set(CORE_SOURCES
 # Add protobuf-c sources if available (for C profilers like DynamoRIO)
 set(PROTOBUF_C_SOURCES "")
 if(PROTOBUF_C_FOUND)
+    # Find protoc-c executable
+    find_program(PROTOC_C_EXECUTABLE
+        NAMES protoc-c
+        HINTS ${CMAKE_PREFIX_PATH}/bin
+        PATHS ENV PATH
+    )
+
+    if(NOT PROTOC_C_EXECUTABLE)
+        message(FATAL_ERROR "protoc-c executable not found despite PROTOBUF_C being found")
+    endif()
+
     # Custom command to generate C protobuf code
-    # Use protoc-c wrapper which handles both system and locally-built installations
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/memory_trace.pb-c.c
                ${CMAKE_CURRENT_BINARY_DIR}/memory_trace.pb-c.h
                ${CMAKE_CURRENT_BINARY_DIR}/timeseries_metrics.pb-c.c
                ${CMAKE_CURRENT_BINARY_DIR}/timeseries_metrics.pb-c.h
-        COMMAND protoc-c --c_out=${CMAKE_CURRENT_BINARY_DIR}
+        COMMAND ${PROTOC_C_EXECUTABLE} --c_out=${CMAKE_CURRENT_BINARY_DIR}
                 --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
                 ${CMAKE_CURRENT_SOURCE_DIR}/proto/memory_trace.proto
                 ${CMAKE_CURRENT_SOURCE_DIR}/proto/timeseries_metrics.proto
         DEPENDS proto/memory_trace.proto proto/timeseries_metrics.proto
-        COMMENT "Generating C protobuf code"
+        COMMENT "Generating C protobuf code with ${PROTOC_C_EXECUTABLE}"
     )
 
     set(PROTOBUF_C_SOURCES
@@ -66,16 +76,29 @@ if(Protobuf_FOUND)
         ${PROTO_SRCS}
     )
 
+    # Find protoc executable if not already set
+    if(NOT Protobuf_PROTOC_EXECUTABLE)
+        find_program(Protobuf_PROTOC_EXECUTABLE
+            NAMES protoc
+            HINTS ${CMAKE_PREFIX_PATH}/bin
+            PATHS ENV PATH
+        )
+    endif()
+
+    if(NOT Protobuf_PROTOC_EXECUTABLE)
+        message(FATAL_ERROR "protoc executable not found despite Protobuf being found")
+    endif()
+
     # Also generate Python protobuf files for Python tools
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/proto/memory_trace_pb2.py
                ${CMAKE_CURRENT_SOURCE_DIR}/proto/timeseries_metrics_pb2.py
-        COMMAND protoc --python_out=${CMAKE_CURRENT_SOURCE_DIR}/proto
+        COMMAND ${Protobuf_PROTOC_EXECUTABLE} --python_out=${CMAKE_CURRENT_SOURCE_DIR}/proto
                 --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
                 ${CMAKE_CURRENT_SOURCE_DIR}/proto/memory_trace.proto
                 ${CMAKE_CURRENT_SOURCE_DIR}/proto/timeseries_metrics.proto
         DEPENDS proto/memory_trace.proto proto/timeseries_metrics.proto
-        COMMENT "Generating Python protobuf code"
+        COMMENT "Generating Python protobuf code with ${Protobuf_PROTOC_EXECUTABLE}"
     )
 
     set(PROTOBUF_PYTHON_FILES

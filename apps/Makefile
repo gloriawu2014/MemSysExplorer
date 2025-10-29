@@ -87,10 +87,11 @@ common: protobuf protobuf-c
 	@echo "        Building Common Library          "
 	@mkdir -p $(COMMON_DIR)/build
 	@cd $(COMMON_DIR)/build && \
+		PATH=$(PROTOBUF_C_PREFIX)/bin:$(PROTOBUF_PREFIX)/bin:$$PATH \
 		PKG_CONFIG_PATH=$(PROTOBUF_C_PREFIX)/lib/pkgconfig:$(PROTOBUF_PREFIX)/lib/pkgconfig:$$PKG_CONFIG_PATH \
 		CMAKE_PREFIX_PATH=$(PROTOBUF_C_PREFIX):$(PROTOBUF_PREFIX):$$CMAKE_PREFIX_PATH \
 		cmake -DProtobuf_DIR=$(PROTOBUF_PREFIX)/lib/cmake/protobuf .. && \
-		make
+		PATH=$(PROTOBUF_C_PREFIX)/bin:$(PROTOBUF_PREFIX)/bin:$$PATH make
 	@echo "Common library built successfully."
 
 dynamorio: init_json common
