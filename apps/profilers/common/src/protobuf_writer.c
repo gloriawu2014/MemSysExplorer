@@ -12,21 +12,14 @@
 /* Memory Trace Writer Structure */
 struct pb_trace_writer {
     FILE *file;
-    MemoryTrace__MemoryTrace *trace;
-    size_t event_capacity;
-    size_t event_count;
-    size_t flush_threshold;  /* Flush after this many events (default: 1000) */
-    size_t total_events_written;  /* Total events written across all flushes */
+    size_t total_events_written;  /* Total events written to file */
 };
 
 /* Time-Series Writer Structure */
 struct pb_timeseries_writer {
     FILE *file;
-    Memsys__Timeseries__TimeSeriesData *data;
-    size_t sample_capacity;
-    size_t sample_count;
-    size_t flush_threshold;  /* Flush after this many samples (default: 10000) */
-    size_t total_samples_written;  /* Total samples written across all flushes */
+    Memsys__Timeseries__RunMetadata *metadata;  /* Keep metadata for writing with each sample batch */
+    size_t total_samples_written;  /* Total samples written to file */
 };
 
 /* ========== Memory Trace Writer ========== */
@@ -41,18 +34,6 @@ pb_trace_writer_t* pb_trace_writer_create(const char *filename) {
         return NULL;
     }
 
-    /* Initialize protobuf message */
-    writer->trace = (MemoryTrace__MemoryTrace*)malloc(sizeof(MemoryTrace__MemoryTrace));
-    memory_trace__memory_trace__init(writer->trace);
-
-    /* Pre-allocate event array */
-    writer->event_capacity = 1024;
-    writer->event_count = 0;
-    writer->trace->events = (MemoryTrace__MemoryEvent**)
-        malloc(writer->event_capacity * sizeof(MemoryTrace__MemoryEvent*));
-
-    /* Initialize flush control */
-    writer->flush_threshold = 1000;  /* Flush every 1000 events */
     writer->total_events_written = 0;
 
     return writer;
@@ -66,74 +47,46 @@ void pb_trace_write_event(pb_trace_writer_t *writer,
                           uint32_t size) {
     if (!writer) return;
 
-    /* Resize array if needed */
-    if (writer->event_count >= writer->event_capacity) {
-        writer->event_capacity *= 2;
-        writer->trace->events = (MemoryTrace__MemoryEvent**)realloc(
-            writer->trace->events,
-            writer->event_capacity * sizeof(MemoryTrace__MemoryEvent*));
-    }
+    /* Create a single event */
+    MemoryTrace__MemoryEvent event = MEMORY_TRACE__MEMORY_EVENT__INIT;
+    event.timestamp = timestamp;
+    event.thread_id = thread_id;
+    event.address = address;
+    event.mem_op = is_write ? MEMORY_TRACE__MEM_OP__WRITE : MEMORY_TRACE__MEM_OP__READ;
+    event.hit_miss = MEMORY_TRACE__HIT_MISS__MISS;
 
-    /* Create new event */
-    MemoryTrace__MemoryEvent *event =
-        (MemoryTrace__MemoryEvent*)malloc(sizeof(MemoryTrace__MemoryEvent));
-    memory_trace__memory_event__init(event);
+    /* Create a wrapper trace with this single event */
+    MemoryTrace__MemoryTrace trace = MEMORY_TRACE__MEMORY_TRACE__INIT;
+    MemoryTrace__MemoryEvent *event_ptr = &event;
+    trace.events = &event_ptr;
+    trace.n_events = 1;
 
-    event->timestamp = timestamp;
-    event->thread_id = thread_id;
-    event->address = address;
-    event->mem_op = is_write ? MEMORY_TRACE__MEM_OP__WRITE : MEMORY_TRACE__MEM_OP__READ;
-    event->hit_miss = MEMORY_TRACE__HIT_MISS__MISS;  /* Can be updated if cache info available */
-
-    writer->trace->events[writer->event_count++] = event;
-    writer->trace->n_events = writer->event_count;
-
-    /* Auto-flush if threshold reached */
-    if (writer->event_count >= writer->flush_threshold) {
-        pb_trace_flush(writer);
-    }
-}
-
-void pb_trace_flush(pb_trace_writer_t *writer) {
-    if (!writer || writer->event_count == 0) return;
-
-    /* Serialize current batch to buffer */
-    size_t packed_size = memory_trace__memory_trace__get_packed_size(writer->trace);
+    /* Serialize and write immediately */
+    size_t packed_size = memory_trace__memory_trace__get_packed_size(&trace);
     uint8_t *buffer = (uint8_t*)malloc(packed_size);
+    memory_trace__memory_trace__pack(&trace, buffer);
 
-    memory_trace__memory_trace__pack(writer->trace, buffer);
-
-    /* Write length-delimited format: 4-byte length + data */
+    /* Write length-delimited: 4-byte size + data */
     uint32_t msg_size = (uint32_t)packed_size;
     fwrite(&msg_size, sizeof(uint32_t), 1, writer->file);
     fwrite(buffer, 1, packed_size, writer->file);
-    fflush(writer->file);  /* Ensure data hits disk */
+    fflush(writer->file);  /* Force to disk immediately */
 
     free(buffer);
+    writer->total_events_written++;
+}
 
-    /* Update total count */
-    writer->total_events_written += writer->event_count;
-
-    /* Clear buffer for next batch */
-    for (size_t i = 0; i < writer->event_count; i++) {
-        free(writer->trace->events[i]);
-    }
-    writer->event_count = 0;
-    writer->trace->n_events = 0;
+void pb_trace_flush(pb_trace_writer_t *writer) {
+    if (!writer) return;
+    /* Ensure OS buffer is flushed to disk */
+    fflush(writer->file);
 }
 
 void pb_trace_writer_close(pb_trace_writer_t *writer) {
     if (!writer) return;
 
-    /* Flush any remaining events */
-    if (writer->event_count > 0) {
-        pb_trace_flush(writer);
-    }
-
-    /* Cleanup */
-    free(writer->trace->events);
-    free(writer->trace);
-
+    /* Final flush */
+    fflush(writer->file);
     fclose(writer->file);
     free(writer);
 }
@@ -158,32 +111,19 @@ pb_timeseries_writer_t* pb_timeseries_writer_create(
         return NULL;
     }
 
-    /* Initialize time-series data */
-    writer->data = (Memsys__Timeseries__TimeSeriesData*)
-        malloc(sizeof(Memsys__Timeseries__TimeSeriesData));
-    memsys__timeseries__time_series_data__init(writer->data);
-
-    /* Initialize metadata */
-    writer->data->metadata = (Memsys__Timeseries__RunMetadata*)
+    /* Initialize and store metadata (will be written with each sample) */
+    writer->metadata = (Memsys__Timeseries__RunMetadata*)
         malloc(sizeof(Memsys__Timeseries__RunMetadata));
-    memsys__timeseries__run_metadata__init(writer->data->metadata);
+    memsys__timeseries__run_metadata__init(writer->metadata);
 
-    writer->data->metadata->profiler = strdup(profiler);
-    writer->data->metadata->pid = pid;
-    writer->data->metadata->command = strdup(command);
-    writer->data->metadata->sample_window_refs = sample_window_refs;
-    writer->data->metadata->cache_line_size = cache_line_size;
-    writer->data->metadata->start_timestamp = 0;  /* Can be set later */
-    writer->data->metadata->num_threads = 0;      /* Will be set before close */
+    writer->metadata->profiler = strdup(profiler);
+    writer->metadata->pid = pid;
+    writer->metadata->command = strdup(command);
+    writer->metadata->sample_window_refs = sample_window_refs;
+    writer->metadata->cache_line_size = cache_line_size;
+    writer->metadata->start_timestamp = 0;
+    writer->metadata->num_threads = 0;
 
-    /* Pre-allocate sample array */
-    writer->sample_capacity = 1024;
-    writer->sample_count = 0;
-    writer->data->samples = (Memsys__Timeseries__SampleWindow**)
-        malloc(writer->sample_capacity * sizeof(Memsys__Timeseries__SampleWindow*));
-
-    /* Initialize flush control */
-    writer->flush_threshold = 10000;  /* Flush every 10,000 samples */
     writer->total_samples_written = 0;
 
     return writer;
@@ -200,87 +140,61 @@ void pb_timeseries_write_sample(pb_timeseries_writer_t *writer,
                                 uint64_t timestamp) {
     if (!writer) return;
 
-    /* Resize array if needed */
-    if (writer->sample_count >= writer->sample_capacity) {
-        writer->sample_capacity *= 2;
-        writer->data->samples = (Memsys__Timeseries__SampleWindow**)realloc(
-            writer->data->samples,
-            writer->sample_capacity * sizeof(Memsys__Timeseries__SampleWindow*));
-    }
+    /* Create a single sample */
+    Memsys__Timeseries__SampleWindow sample = MEMSYS__TIMESERIES__SAMPLE_WINDOW__INIT;
+    sample.window_number = window_number;
+    sample.thread_id = thread_id;
+    sample.read_count = read_count;
+    sample.write_count = write_count;
+    sample.total_refs = total_refs;
+    sample.wss_exact = wss_exact;
+    sample.wss_approx = wss_approx;
+    sample.timestamp = timestamp;
 
-    /* Create new sample */
-    Memsys__Timeseries__SampleWindow *sample =
-        (Memsys__Timeseries__SampleWindow*)malloc(sizeof(Memsys__Timeseries__SampleWindow));
-    memsys__timeseries__sample_window__init(sample);
+    /* Create a wrapper TimeSeriesData with metadata and this single sample */
+    Memsys__Timeseries__TimeSeriesData data = MEMSYS__TIMESERIES__TIME_SERIES_DATA__INIT;
+    data.metadata = writer->metadata;
+    Memsys__Timeseries__SampleWindow *sample_ptr = &sample;
+    data.samples = &sample_ptr;
+    data.n_samples = 1;
 
-    sample->window_number = window_number;
-    sample->thread_id = thread_id;
-    sample->read_count = read_count;
-    sample->write_count = write_count;
-    sample->total_refs = total_refs;
-    sample->wss_exact = wss_exact;
-    sample->wss_approx = wss_approx;
-    sample->timestamp = timestamp;
-
-    writer->data->samples[writer->sample_count++] = sample;
-    writer->data->n_samples = writer->sample_count;
-
-    /* Auto-flush if threshold reached */
-    if (writer->sample_count >= writer->flush_threshold) {
-        pb_timeseries_flush(writer);
-    }
-}
-
-void pb_timeseries_flush(pb_timeseries_writer_t *writer) {
-    if (!writer || writer->sample_count == 0) return;
-
-    /* Serialize current batch to buffer */
-    size_t packed_size = memsys__timeseries__time_series_data__get_packed_size(writer->data);
+    /* Serialize and write immediately */
+    size_t packed_size = memsys__timeseries__time_series_data__get_packed_size(&data);
     uint8_t *buffer = (uint8_t*)malloc(packed_size);
+    memsys__timeseries__time_series_data__pack(&data, buffer);
 
-    memsys__timeseries__time_series_data__pack(writer->data, buffer);
-
-    /* Write length-delimited format: 4-byte length + data */
+    /* Write length-delimited: 4-byte size + data */
     uint32_t msg_size = (uint32_t)packed_size;
     fwrite(&msg_size, sizeof(uint32_t), 1, writer->file);
     fwrite(buffer, 1, packed_size, writer->file);
-    fflush(writer->file);  /* Ensure data hits disk immediately */
+    fflush(writer->file);  /* Force to disk immediately */
 
     free(buffer);
+    writer->total_samples_written++;
+}
 
-    /* Update total count */
-    writer->total_samples_written += writer->sample_count;
-
-    /* Clear buffer for next batch */
-    for (size_t i = 0; i < writer->sample_count; i++) {
-        free(writer->data->samples[i]);
-    }
-    writer->sample_count = 0;
-    writer->data->n_samples = 0;
+void pb_timeseries_flush(pb_timeseries_writer_t *writer) {
+    if (!writer) return;
+    /* Ensure OS buffer is flushed to disk */
+    fflush(writer->file);
 }
 
 void pb_timeseries_set_num_threads(pb_timeseries_writer_t *writer,
                                    uint32_t num_threads) {
-    if (!writer || !writer->data->metadata) return;
-    writer->data->metadata->num_threads = num_threads;
+    if (!writer || !writer->metadata) return;
+    writer->metadata->num_threads = num_threads;
 }
 
 void pb_timeseries_writer_close(pb_timeseries_writer_t *writer) {
     if (!writer) return;
 
-    /* Flush any remaining samples */
-    if (writer->sample_count > 0) {
-        pb_timeseries_flush(writer);
-    }
+    /* Final flush */
+    fflush(writer->file);
 
     /* Cleanup metadata */
-    free((void*)writer->data->metadata->profiler);
-    free((void*)writer->data->metadata->command);
-    free(writer->data->metadata);
-
-    /* Cleanup arrays */
-    free(writer->data->samples);
-    free(writer->data);
+    free((void*)writer->metadata->profiler);
+    free((void*)writer->metadata->command);
+    free(writer->metadata);
 
     fclose(writer->file);
     free(writer);

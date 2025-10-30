@@ -58,7 +58,7 @@ class MemoryTraceParser:
         self._load()
 
     def _load(self):
-        """Load and parse the protobuf file"""
+        """Load and parse the protobuf file (supports both single-message and length-delimited formats)"""
         if not os.path.exists(self.pb_file):
             raise FileNotFoundError(f"Protobuf file not found: {self.pb_file}")
 
@@ -66,9 +66,71 @@ class MemoryTraceParser:
 
         try:
             with open(self.pb_file, 'rb') as f:
-                self.trace.ParseFromString(f.read())
+                file_content = f.read()
+
+                # Check if file is empty
+                if len(file_content) == 0:
+                    raise ValueError("File is empty (0 bytes)")
+
+                # Try parsing as length-delimited format first (new format with periodic flushing)
+                if self._try_parse_length_delimited(file_content):
+                    return
+
+                # Fall back to single-message format (old format)
+                self.trace.ParseFromString(file_content)
+
         except Exception as e:
             raise ValueError(f"Failed to parse protobuf file: {e}")
+
+    def _try_parse_length_delimited(self, content):
+        """
+        Try to parse length-delimited format where each message is prefixed with 4-byte length.
+        Returns True if successful, False otherwise.
+        """
+        import struct
+
+        try:
+            offset = 0
+            all_events = []
+
+            while offset < len(content):
+                # Read 4-byte message length
+                if offset + 4 > len(content):
+                    # Not enough bytes for length prefix
+                    return False
+
+                msg_size = struct.unpack('<I', content[offset:offset+4])[0]
+                offset += 4
+
+                # Check if message size is reasonable (< 1GB)
+                if msg_size == 0 or msg_size > 1024*1024*1024:
+                    return False
+
+                # Read the message
+                if offset + msg_size > len(content):
+                    # Not enough bytes for message
+                    return False
+
+                msg_data = content[offset:offset+msg_size]
+                offset += msg_size
+
+                # Parse this chunk
+                chunk = trace_pb.MemoryTrace()
+                chunk.ParseFromString(msg_data)
+
+                # Collect all events
+                all_events.extend(chunk.events)
+
+            # Add all collected events to the trace
+            for event in all_events:
+                new_event = self.trace.events.add()
+                new_event.CopyFrom(event)
+
+            return True
+
+        except Exception:
+            # If anything fails, return False to try single-message format
+            return False
 
     def to_dict(self, limit=None, filter_thread=None):
         """
