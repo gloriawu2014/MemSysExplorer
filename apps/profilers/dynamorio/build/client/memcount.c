@@ -763,9 +763,10 @@ memtrace(void *drcontext)
     num_refs = (int)((mem_ref_t *)data->buf_ptr - mem_ref);
 
     for(int i = 0; i < num_refs; i++) {
-        /* Assign timestamp to this memory reference */
-        mem_ref->timestamp = get_timestamp();
-	
+        /* Note: Per-reference timestamps removed for performance.
+         * Timestamps are captured at sampling window boundaries (finalize_sample_window)
+         * and during trace events (direct_trace_write) if tracing is enabled. */
+
 	uintptr_t key = ((uintptr_t)mem_ref->addr) & cache_line_mask;
         
 	if (config.wss_exact_tracking) {

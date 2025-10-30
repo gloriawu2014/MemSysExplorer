@@ -15,6 +15,8 @@ struct pb_trace_writer {
     MemoryTrace__MemoryTrace *trace;
     size_t event_capacity;
     size_t event_count;
+    size_t flush_threshold;  /* Flush after this many events (default: 1000) */
+    size_t total_events_written;  /* Total events written across all flushes */
 };
 
 /* Time-Series Writer Structure */
@@ -23,6 +25,8 @@ struct pb_timeseries_writer {
     Memsys__Timeseries__TimeSeriesData *data;
     size_t sample_capacity;
     size_t sample_count;
+    size_t flush_threshold;  /* Flush after this many samples (default: 10000) */
+    size_t total_samples_written;  /* Total samples written across all flushes */
 };
 
 /* ========== Memory Trace Writer ========== */
@@ -46,6 +50,10 @@ pb_trace_writer_t* pb_trace_writer_create(const char *filename) {
     writer->event_count = 0;
     writer->trace->events = (MemoryTrace__MemoryEvent**)
         malloc(writer->event_capacity * sizeof(MemoryTrace__MemoryEvent*));
+
+    /* Initialize flush control */
+    writer->flush_threshold = 1000;  /* Flush every 1000 events */
+    writer->total_events_written = 0;
 
     return writer;
 }
@@ -79,24 +87,50 @@ void pb_trace_write_event(pb_trace_writer_t *writer,
 
     writer->trace->events[writer->event_count++] = event;
     writer->trace->n_events = writer->event_count;
+
+    /* Auto-flush if threshold reached */
+    if (writer->event_count >= writer->flush_threshold) {
+        pb_trace_flush(writer);
+    }
+}
+
+void pb_trace_flush(pb_trace_writer_t *writer) {
+    if (!writer || writer->event_count == 0) return;
+
+    /* Serialize current batch to buffer */
+    size_t packed_size = memory_trace__memory_trace__get_packed_size(writer->trace);
+    uint8_t *buffer = (uint8_t*)malloc(packed_size);
+
+    memory_trace__memory_trace__pack(writer->trace, buffer);
+
+    /* Write length-delimited format: 4-byte length + data */
+    uint32_t msg_size = (uint32_t)packed_size;
+    fwrite(&msg_size, sizeof(uint32_t), 1, writer->file);
+    fwrite(buffer, 1, packed_size, writer->file);
+    fflush(writer->file);  /* Ensure data hits disk */
+
+    free(buffer);
+
+    /* Update total count */
+    writer->total_events_written += writer->event_count;
+
+    /* Clear buffer for next batch */
+    for (size_t i = 0; i < writer->event_count; i++) {
+        free(writer->trace->events[i]);
+    }
+    writer->event_count = 0;
+    writer->trace->n_events = 0;
 }
 
 void pb_trace_writer_close(pb_trace_writer_t *writer) {
     if (!writer) return;
 
-    /* Serialize protobuf to file */
-    size_t packed_size = memory_trace__memory_trace__get_packed_size(writer->trace);
-    uint8_t *buffer = (uint8_t*)malloc(packed_size);
-
-    memory_trace__memory_trace__pack(writer->trace, buffer);
-    fwrite(buffer, 1, packed_size, writer->file);
-
-    free(buffer);
+    /* Flush any remaining events */
+    if (writer->event_count > 0) {
+        pb_trace_flush(writer);
+    }
 
     /* Cleanup */
-    for (size_t i = 0; i < writer->event_count; i++) {
-        free(writer->trace->events[i]);
-    }
     free(writer->trace->events);
     free(writer->trace);
 
@@ -148,6 +182,10 @@ pb_timeseries_writer_t* pb_timeseries_writer_create(
     writer->data->samples = (Memsys__Timeseries__SampleWindow**)
         malloc(writer->sample_capacity * sizeof(Memsys__Timeseries__SampleWindow*));
 
+    /* Initialize flush control */
+    writer->flush_threshold = 10000;  /* Flush every 10,000 samples */
+    writer->total_samples_written = 0;
+
     return writer;
 }
 
@@ -186,6 +224,39 @@ void pb_timeseries_write_sample(pb_timeseries_writer_t *writer,
 
     writer->data->samples[writer->sample_count++] = sample;
     writer->data->n_samples = writer->sample_count;
+
+    /* Auto-flush if threshold reached */
+    if (writer->sample_count >= writer->flush_threshold) {
+        pb_timeseries_flush(writer);
+    }
+}
+
+void pb_timeseries_flush(pb_timeseries_writer_t *writer) {
+    if (!writer || writer->sample_count == 0) return;
+
+    /* Serialize current batch to buffer */
+    size_t packed_size = memsys__timeseries__time_series_data__get_packed_size(writer->data);
+    uint8_t *buffer = (uint8_t*)malloc(packed_size);
+
+    memsys__timeseries__time_series_data__pack(writer->data, buffer);
+
+    /* Write length-delimited format: 4-byte length + data */
+    uint32_t msg_size = (uint32_t)packed_size;
+    fwrite(&msg_size, sizeof(uint32_t), 1, writer->file);
+    fwrite(buffer, 1, packed_size, writer->file);
+    fflush(writer->file);  /* Ensure data hits disk immediately */
+
+    free(buffer);
+
+    /* Update total count */
+    writer->total_samples_written += writer->sample_count;
+
+    /* Clear buffer for next batch */
+    for (size_t i = 0; i < writer->sample_count; i++) {
+        free(writer->data->samples[i]);
+    }
+    writer->sample_count = 0;
+    writer->data->n_samples = 0;
 }
 
 void pb_timeseries_set_num_threads(pb_timeseries_writer_t *writer,
@@ -197,24 +268,17 @@ void pb_timeseries_set_num_threads(pb_timeseries_writer_t *writer,
 void pb_timeseries_writer_close(pb_timeseries_writer_t *writer) {
     if (!writer) return;
 
-    /* Serialize protobuf to file */
-    size_t packed_size = memsys__timeseries__time_series_data__get_packed_size(writer->data);
-    uint8_t *buffer = (uint8_t*)malloc(packed_size);
-
-    memsys__timeseries__time_series_data__pack(writer->data, buffer);
-    fwrite(buffer, 1, packed_size, writer->file);
-
-    free(buffer);
+    /* Flush any remaining samples */
+    if (writer->sample_count > 0) {
+        pb_timeseries_flush(writer);
+    }
 
     /* Cleanup metadata */
     free((void*)writer->data->metadata->profiler);
     free((void*)writer->data->metadata->command);
     free(writer->data->metadata);
 
-    /* Cleanup samples */
-    for (size_t i = 0; i < writer->sample_count; i++) {
-        free(writer->data->samples[i]);
-    }
+    /* Cleanup arrays */
     free(writer->data->samples);
     free(writer->data);
 
@@ -237,6 +301,10 @@ void pb_trace_write_event(pb_trace_writer_t *writer,
     /* No-op */
 }
 
+void pb_trace_flush(pb_trace_writer_t *writer) {
+    /* No-op */
+}
+
 void pb_trace_writer_close(pb_trace_writer_t *writer) {
     /* No-op */
 }
@@ -255,6 +323,10 @@ void pb_timeseries_write_sample(pb_timeseries_writer_t *writer,
                                 uint64_t total_refs,
                                 uint64_t wss_exact, double wss_approx,
                                 uint64_t timestamp) {
+    /* No-op */
+}
+
+void pb_timeseries_flush(pb_timeseries_writer_t *writer) {
     /* No-op */
 }
 

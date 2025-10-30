@@ -101,6 +101,18 @@ void pb_timeseries_write_sample(pb_timeseries_writer_t *writer,
                                 uint64_t timestamp);
 
 /**
+ * Manually flush buffered samples to disk
+ * @param writer Writer handle
+ */
+void pb_timeseries_flush(pb_timeseries_writer_t *writer);
+
+/**
+ * Manually flush buffered trace events to disk
+ * @param writer Writer handle
+ */
+void pb_trace_flush(pb_trace_writer_t *writer);
+
+/**
  * Set number of threads in metadata (call before closing)
  * @param writer Writer handle
  * @param num_threads Total thread count
