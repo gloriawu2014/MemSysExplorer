@@ -17,6 +17,6 @@ wss_stat_tracking=true
 wss_exact_tracking=true
 wss_hll_tracking=true
 
-# File Prefixes (no file extension)
-trace_file_prefix=memtrace_tid
-csv_file_prefix=wss_samples_tid
+# Protobuf Output Files (base names, process ID will be appended)
+pb_trace_output=memtrace
+pb_timeseries_output=timeseries

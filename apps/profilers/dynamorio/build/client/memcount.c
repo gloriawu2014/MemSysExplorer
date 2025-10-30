@@ -62,9 +62,9 @@ typedef struct {
     bool wss_exact_tracking;    /* Enable exact WSS tracking (memory intensive) */
     bool wss_hll_tracking;      /* Enable HLL-based WSS tracking (memory efficient) */
     
-    /* File paths */
-    char trace_file_prefix[256];
-    char csv_file_prefix[256];
+    /* Protobuf output file paths */
+    char pb_trace_output[256];
+    char pb_timeseries_output[256];
 } memcount_config_t;
 
 /* Global configuration with default values */
@@ -78,8 +78,8 @@ static memcount_config_t config = {
     .wss_stat_tracking = true,
     .wss_exact_tracking = true,
     .wss_hll_tracking = true,
-    .trace_file_prefix = "memtrace_tid",
-    .csv_file_prefix = "wss_samples_tid"
+    .pb_trace_output = "memtrace",
+    .pb_timeseries_output = "timeseries"
 };
 
 /* Derived values calculated from config */
@@ -286,10 +286,10 @@ static bool parse_config_file(const char *config_path) {
             config.wss_exact_tracking = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
         } else if (strcmp(key, "wss_hll_tracking") == 0) {
             config.wss_hll_tracking = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
-        } else if (strcmp(key, "trace_file_prefix") == 0) {
-            strncpy(config.trace_file_prefix, value, sizeof(config.trace_file_prefix) - 1);
-        } else if (strcmp(key, "csv_file_prefix") == 0) {
-            strncpy(config.csv_file_prefix, value, sizeof(config.csv_file_prefix) - 1);
+        } else if (strcmp(key, "pb_trace_output") == 0) {
+            strncpy(config.pb_trace_output, value, sizeof(config.pb_trace_output) - 1);
+        } else if (strcmp(key, "pb_timeseries_output") == 0) {
+            strncpy(config.pb_timeseries_output, value, sizeof(config.pb_timeseries_output) - 1);
         }
         
         line = next_line;
@@ -404,7 +404,8 @@ dr_client_main(client_id_t id, int argc, const char *argv[])
     /* Initialize protobuf writers (single file for all threads) */
     if (config.enable_trace) {
         char trace_filename[256];
-        dr_snprintf(trace_filename, sizeof(trace_filename), "memtrace_%d.pb", dr_get_process_id());
+        dr_snprintf(trace_filename, sizeof(trace_filename), "%s_%d.pb",
+                   config.pb_trace_output, dr_get_process_id());
         global_trace_writer = pb_trace_writer_create(trace_filename);
         trace_mutex = dr_mutex_create();
         if (global_trace_writer) {
@@ -419,7 +420,7 @@ dr_client_main(client_id_t id, int argc, const char *argv[])
         const char *command;
 
         dr_snprintf(timeseries_filename, sizeof(timeseries_filename),
-                   "timeseries_%d.pb", dr_get_process_id());
+                   "%s_%d.pb", config.pb_timeseries_output, dr_get_process_id());
 
         /* Get command line (returns const char*) */
         command = dr_get_application_name();
