@@ -11,7 +11,7 @@ max_mem_refs=8192
 
 # Output Control
 enable_trace=false
-wss_stat_tracking=true
+wss_stat_tracking=false
 
 # WSS Tracking Methods
 wss_exact_tracking=true
