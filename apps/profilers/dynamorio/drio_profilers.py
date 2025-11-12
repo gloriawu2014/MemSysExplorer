@@ -12,20 +12,23 @@ class DrioProfilers(FrontendInterface):
         ----------
         **kwargs : dict
             Dictionary that may contain:
-            
+
             - executable : list
               A list including the executable and its arguments.
             - action : str
               One of "profiling", "extract_metrics", or "both".
             - config_file : str, optional
               Path to memcount configuration file.
+            - enable_memory_stats : bool, optional
+              Enable DynamoRIO memory statistics tracking.
 
         """
-        
+
         super().__init__(**kwargs)
         self.executable_cmd = " ".join(self.config.get("executable", []))
         self.action = self.config.get("action")
         self.config_file = self.config.get("config")
+        self.enable_memory_stats = self.config.get("enable_memory_stats", False)
 
         #Get the directory of this script 
         base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -75,6 +78,9 @@ class DrioProfilers(FrontendInterface):
         """
         Construct the full DynamoRIO instrumentation command.
 
+        If memory tracking is enabled, wraps the command with /usr/bin/time
+        to capture peak memory usage of the instrumented process.
+
         Returns
         -------
         tuple
@@ -82,19 +88,27 @@ class DrioProfilers(FrontendInterface):
             - str: report name (derived from executable)
         """
         executable_with_args = self.executable_cmd.split()
-        report = os.path.basename(executable_with_args[0]) 
+        report = os.path.basename(executable_with_args[0])
+
         drio_command = [
             self.run,
             "-c",
             self.client,
         ]
-        
+
         # Add config file if specified
         if self.config_file:
             drio_command.extend(["-config", self.config_file])
-        
+
         drio_command.append("--")
         drio_command.extend(executable_with_args)
+
+        # Wrap with /usr/bin/time for memory tracking if enabled
+        # Format: %M = maximum resident set size in KB
+        # Format: %E = elapsed real time (wall clock)
+        if self.enable_memory_stats:
+            drio_command = ["/usr/bin/time", "-f", "TIMESTAT: Peak_Memory=%MKB Elapsed=%E"] + drio_command
+
         return drio_command, report
 
     # collect all the data that will be stored in a log file
@@ -102,8 +116,9 @@ class DrioProfilers(FrontendInterface):
         """
         Run the profiler using the constructed DynamoRIO command.
 
-        Captures stdout from the profiler and stores it in a `.drio-rep` file
-        if the action is "profiling".
+        Captures stdout and stderr from the profiler. Stdout contains the
+        memcount statistics, stderr contains DynamoRIO's memory tracking stats
+        (if enabled). Stores output in a `.drio-rep` file if action is "profiling".
 
         Raises
         ------
@@ -111,20 +126,24 @@ class DrioProfilers(FrontendInterface):
             If the command execution fails.
         """
         # self.validate_paths()
-        drio_command, report = self.constuct_command() 
+        drio_command, report = self.constuct_command()
         try:
             print(f"Executing: {' '.join(drio_command)}")
-            profiler_data = subprocess.run(drio_command, check=True, text=True, stdout=subprocess.PIPE)
+            profiler_data = subprocess.run(drio_command, check=True, text=True,
+                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except subprocess.CalledProcessError as e:
             print(f"Command failed with exit code {e.returncode}")
-            raise 
+            raise
         self.output = profiler_data.stdout
+        self.stderr_output = profiler_data.stderr
 
         # store output to file
         if self.action == "profiling":
             self.report = f"{report}.drio-rep"
             with open(self.report, 'w') as drio_report:
-                drio_report.write(f"Profiling output:\n {self.output}")
+                drio_report.write(f"Profiling output:\n{self.output}")
+                if self.stderr_output:
+                    drio_report.write(f"\n\nDynamoRIO Stats:\n{self.stderr_output}")
             print(f"Output written to file {report}.drio-rep")
 
     def extract_metrics(self, report_file=None, **kwargs):
@@ -145,6 +164,7 @@ class DrioProfilers(FrontendInterface):
             - total_reads
             - total_writes
             - workingset_size
+            - peak_memory_usage (if memory stats enabled)
 
         Raises
         ------
@@ -152,12 +172,21 @@ class DrioProfilers(FrontendInterface):
             If expected patterns are not found in the report.
         """
         toparse = ""
+        stderr_output = ""
         if self.action == "extract_metrics":
             with open(report_file) as file:
-                 toparse = file.read()
+                 content = file.read()
+                 # Split content into stdout and stderr sections
+                 if "DynamoRIO Stats:" in content:
+                     parts = content.split("DynamoRIO Stats:")
+                     toparse = parts[0]
+                     stderr_output = parts[1] if len(parts) > 1 else ""
+                 else:
+                     toparse = content
         if self.action == "both":
             toparse = self.output
-        
+            stderr_output = getattr(self, 'stderr_output', '')
+
         print(toparse)
 
         # Extract the memory statistics
@@ -229,6 +258,22 @@ class DrioProfilers(FrontendInterface):
                 "write_size_64": int(write_size_64.group(1)) if write_size_64 else 0,
                 "write_size_other": int(write_size_other.group(1)) if write_size_other else 0,
             })
+
+            # Extract memory statistics if available (from /usr/bin/time wrapper)
+            if stderr_output and self.enable_memory_stats:
+                try:
+                    # Parse /usr/bin/time output format: "TIMESTAT: Peak_Memory=123456KB Elapsed=0:12.34"
+                    peak_mem_match = re.search(r"TIMESTAT:.*Peak_Memory=(\d+)KB", stderr_output)
+                    if peak_mem_match:
+                        self.data["peak_memory_kb"] = int(peak_mem_match.group(1))
+
+                    # Optionally extract wall clock time as well
+                    elapsed_match = re.search(r"TIMESTAT:.*Elapsed=([\d:.]+)", stderr_output)
+                    if elapsed_match:
+                        self.data["wall_clock_time"] = elapsed_match.group(1)
+                except (AttributeError, ValueError):
+                    # Memory stats not found, not an error
+                    pass
 
             return self.data
         except AttributeError as e:

@@ -11,11 +11,11 @@ max_mem_refs=8192
 
 # Output Control
 enable_trace=false
-wss_stat_tracking=true
+wss_stat_tracking=false
 
 # WSS Tracking Methods
-wss_exact_tracking=true
-wss_hll_tracking=false
+wss_exact_tracking=false
+wss_hll_tracking=true
 
 # Instruction Threshold Control
 # Set enable_instruction_threshold=true to terminate after a specific number of instructions

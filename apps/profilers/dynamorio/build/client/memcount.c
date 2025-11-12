@@ -751,7 +751,9 @@ event_thread_init(void *drcontext)
     } else {
         data->ws = NULL;
     }
-    DR_ASSERT(hll_init(&data->hll, config.hll_bits) == 0);
+    if (config.wss_hll_tracking) {
+        DR_ASSERT(hll_init(&data->hll, config.hll_bits) == 0);
+    }
 
     /* Initialize size-specific counters */
     data->read_size_1 = 0;
@@ -771,18 +773,19 @@ event_thread_init(void *drcontext)
     data->write_size_64 = 0;
     data->write_size_other = 0;
 
-    /* per-window sampling (only if WSS stats enabled) */
+    /* per-window sampling structures (independent of wss_stat_tracking) */
+    if (config.wss_exact_tracking) {
+        data->sample_ws = ws_create();
+    } else {
+        data->sample_ws = NULL;
+    }
+
+    if (config.wss_hll_tracking) {
+        DR_ASSERT(hll_init(&data->sample_hll, config.sample_hll_bits) == 0);
+    }
+
+    /* per-window sampling counters (only needed if stat tracking is enabled) */
     if (config.wss_stat_tracking) {
-        if (config.wss_exact_tracking) {
-            data->sample_ws = ws_create();
-        } else {
-            data->sample_ws = NULL;
-        }
-
-        if (config.wss_hll_tracking) {
-            DR_ASSERT(hll_init(&data->sample_hll, config.sample_hll_bits) == 0);
-        }
-
         data->sample_ref_count = 0;
         data->sample_read_count = 0;
         data->sample_write_count = 0;
@@ -806,7 +809,7 @@ event_thread_init(void *drcontext)
         data->sample_write_size_64 = 0;
         data->sample_write_size_other = 0;
     } else {
-        data->sample_ws = NULL;
+        /* If stat tracking is disabled, still need to initialize counters */
         data->sample_ref_count = 0;
         data->sample_read_count = 0;
         data->sample_write_count = 0;
@@ -836,22 +839,24 @@ event_thread_exit(void *drcontext)
     if (config.wss_stat_tracking && data->sample_ref_count > 0)
     	finalize_sample_window(data);
 
-    /* destroy windowed structures */
-    if (config.wss_stat_tracking) {
-        if (config.wss_exact_tracking && data->sample_ws) {
-            ws_destroy(data->sample_ws);
-        }
-        if (config.wss_hll_tracking) {
-            hll_destroy(&data->sample_hll);
-        }
+    /* destroy windowed structures (independent of wss_stat_tracking) */
+    if (config.wss_exact_tracking && data->sample_ws) {
+        ws_destroy(data->sample_ws);
+    }
+    if (config.wss_hll_tracking) {
+        hll_destroy(&data->sample_hll);
     }
 
     ws_stats_t s = {0};
     if (config.wss_exact_tracking) {
         ws_get_stats(data->ws, &s);
         data->working_set = s.distinct;    /* #lines seen exactly once */
+    } else if (config.wss_hll_tracking) {
+        /* Use HLL estimate if exact tracking is disabled but HLL is enabled */
+        data->working_set = (uint64)hll_count(&data->hll);
     } else {
-        data->working_set = 0; /* Use HLL estimate instead */
+        /* Both tracking methods disabled */
+        data->working_set = 0;
     }
     if (data->ws) {
         ws_destroy(data->ws);
@@ -885,10 +890,12 @@ event_thread_exit(void *drcontext)
 
     dr_mutex_unlock(mutex);
 
-    dr_mutex_lock(hll_mutex);
-    hll_merge(&global_hll, &data->hll); 
-    dr_mutex_unlock(hll_mutex);
-    hll_destroy(&data->hll);
+    if (config.wss_hll_tracking) {
+        dr_mutex_lock(hll_mutex);
+        hll_merge(&global_hll, &data->hll);
+        dr_mutex_unlock(hll_mutex);
+        hll_destroy(&data->hll);
+    }
 
     dr_thread_free(drcontext, data->buf_base, mem_buf_size);
     dr_thread_free(drcontext, data, sizeof(per_thread_t));
@@ -983,8 +990,8 @@ event_bb_insert(void *drcontext, void *tag, instrlist_t *bb, instr_t *where,
         }
     }
     
-    /* Use buffer-based instrumentation for statistical tracking */
-    if (config.wss_exact_tracking || config.wss_stat_tracking) {
+    /* Use buffer-based instrumentation for WSS tracking */
+    if (config.wss_exact_tracking || config.wss_hll_tracking || config.wss_stat_tracking) {
         if (instr_reads_memory(instr_operands)) {
             for (i = 0; i < instr_num_srcs(instr_operands); i++) {
                 if (opnd_is_memory_reference(instr_get_src(instr_operands, i))) {
@@ -1027,7 +1034,9 @@ memtrace(void *drcontext)
 	if (config.wss_exact_tracking) {
 		ws_record(data->ws, key);
 	}
-	hll_add(&data->hll, &key, sizeof(key));
+	if (config.wss_hll_tracking) {
+		hll_add(&data->hll, &key, sizeof(key));
+	}
 
 	/* WSS sampling only if enabled */
 	if (config.wss_stat_tracking) {

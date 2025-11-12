@@ -124,6 +124,10 @@ def main():
         else:
             parser.add_argument(f"--{arg}", required=True)
 
+    # Add optional memory tracking flag (for DynamoRIO)
+    parser.add_argument("--enable-memory-stats", dest="enable_memory_stats", action="store_true",
+                       help="Enable memory usage tracking (DynamoRIO -stats -mem flags)")
+
     # Parse full arguments now that dynamic ones are registered
     args = parser.parse_args()
     executable_path = args.executable[0] if isinstance(args.executable, list) else args.executable

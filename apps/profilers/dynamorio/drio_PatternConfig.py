@@ -67,7 +67,8 @@ class DrioConfig(PatternConfig):
             "total_reads": "count",
             "total_writes": "count",
             "workingset_size": "count",
-            "execution_time": "microseconds"
+            "execution_time": "microseconds",
+            "peak_memory_kb": "KB"
         }
 
         # Build read size histogram
@@ -107,6 +108,7 @@ class DrioConfig(PatternConfig):
             total_writes=report_data.get("total_writes"),
             workingset_size=report_data.get("workingset_size"),
             execution_time=execution_time_us,  # Store in microseconds
+            peak_memory_kb=report_data.get("peak_memory_kb"),  # Peak memory usage
             read_size=int(dominant_read_size) if dominant_read_size != "other" else 32,
             write_size=int(dominant_write_size) if dominant_write_size != "other" else 32,
             read_size_histogram=read_size_histogram,
