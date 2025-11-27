@@ -1,5 +1,5 @@
 diff --git a/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.cc b/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.cc
-index b966565..0167a6d 100644
+index b966565..b55a755 100644
 --- a/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.cc
 +++ b/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.cc
 @@ -152,7 +152,10 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
@@ -14,7 +14,32 @@ index b966565..0167a6d 100644
  {
     m_core_id_master = m_core_id - m_core_id % m_shared_cores;
     Sim()->getStatsManager()->logTopology(name, core_id, m_core_id_master);
-@@ -280,10 +283,36 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
+@@ -257,6 +260,24 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
+    registerStatsMetric(name, core_id, "coherency-upgrades", &stats.coherency_upgrades);
+    registerStatsMetric(name, core_id, "coherency-writebacks", &stats.coherency_writebacks);
+    registerStatsMetric(name, core_id, "coherency-invalidates", &stats.coherency_invalidates);
++   // Size histogram for loads (reads) - tracks actual access sizes in bytes
++   registerStatsMetric(name, core_id, "load-size-1", &stats.load_size_1);
++   registerStatsMetric(name, core_id, "load-size-2", &stats.load_size_2);
++   registerStatsMetric(name, core_id, "load-size-4", &stats.load_size_4);
++   registerStatsMetric(name, core_id, "load-size-8", &stats.load_size_8);
++   registerStatsMetric(name, core_id, "load-size-16", &stats.load_size_16);
++   registerStatsMetric(name, core_id, "load-size-32", &stats.load_size_32);
++   registerStatsMetric(name, core_id, "load-size-64", &stats.load_size_64);
++   registerStatsMetric(name, core_id, "load-size-other", &stats.load_size_other);
++   // Size histogram for stores (writes) - tracks actual access sizes in bytes
++   registerStatsMetric(name, core_id, "store-size-1", &stats.store_size_1);
++   registerStatsMetric(name, core_id, "store-size-2", &stats.store_size_2);
++   registerStatsMetric(name, core_id, "store-size-4", &stats.store_size_4);
++   registerStatsMetric(name, core_id, "store-size-8", &stats.store_size_8);
++   registerStatsMetric(name, core_id, "store-size-16", &stats.store_size_16);
++   registerStatsMetric(name, core_id, "store-size-32", &stats.store_size_32);
++   registerStatsMetric(name, core_id, "store-size-64", &stats.store_size_64);
++   registerStatsMetric(name, core_id, "store-size-other", &stats.store_size_other);
+ #ifdef ENABLE_TRANSITIONS
+    for(CacheState::cstate_t old_state = CacheState::CSTATE_FIRST; old_state < CacheState::NUM_CSTATE_STATES; old_state = CacheState::cstate_t(int(old_state)+1))
+       for(CacheState::cstate_t new_state = CacheState::CSTATE_FIRST; new_state < CacheState::NUM_CSTATE_STATES; new_state = CacheState::cstate_t(int(new_state)+1))
+@@ -280,10 +301,36 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
        registerStatsMetric(name, core_id, "uncore-totaltime", &m_shmem_perf_totaltime);
        registerStatsMetric(name, core_id, "uncore-requests", &m_shmem_perf_numrequests);
     }
@@ -51,7 +76,7 @@ index b966565..0167a6d 100644
     if (isMasterCache())
     {
        delete m_master;
-@@ -388,6 +417,25 @@ LOG_ASSERT_ERROR(offset + data_length <= getCacheBlockSize(), "access until %u >
+@@ -388,12 +435,56 @@ LOG_ASSERT_ERROR(offset + data_length <= getCacheBlockSize(), "access until %u >
        cache_block_info = NULL;
     }
  
@@ -77,7 +102,38 @@ index b966565..0167a6d 100644
     if (count)
     {
        ScopedLock sl(getLock());
-@@ -793,6 +841,26 @@ CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester, Core::mem_op_t m
+       // Update the Cache Counters
+       getCache()->updateCounters(cache_hit);
+       updateCounters(mem_op_type, ca_address, cache_hit, getCacheState(cache_block_info), Prefetch::NONE);
++
++      // Update size histogram based on actual access size (data_length)
++      if (mem_op_type == Core::WRITE) {
++         switch(data_length) {
++            case 1:  stats.store_size_1++;  break;
++            case 2:  stats.store_size_2++;  break;
++            case 4:  stats.store_size_4++;  break;
++            case 8:  stats.store_size_8++;  break;
++            case 16: stats.store_size_16++; break;
++            case 32: stats.store_size_32++; break;
++            case 64: stats.store_size_64++; break;
++            default: stats.store_size_other++; break;
++         }
++      } else {
++         switch(data_length) {
++            case 1:  stats.load_size_1++;  break;
++            case 2:  stats.load_size_2++;  break;
++            case 4:  stats.load_size_4++;  break;
++            case 8:  stats.load_size_8++;  break;
++            case 16: stats.load_size_16++; break;
++            case 32: stats.load_size_32++; break;
++            case 64: stats.load_size_64++; break;
++            default: stats.load_size_other++; break;
++         }
++      }
+    }
+ 
+    if (cache_hit)
+@@ -793,6 +884,26 @@ CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester, Core::mem_op_t m
     HitWhere::where_t hit_where = HitWhere::MISS;
     SharedCacheBlockInfo* cache_block_info = getCacheBlockInfo(address);
  
@@ -104,7 +160,7 @@ index b966565..0167a6d 100644
     if (!cache_hit && m_perfect)
     {
        cache_hit = true;
-@@ -2303,4 +2371,83 @@ CacheCntlr::getNetworkThreadSemaphore()
+@@ -2303,4 +2414,83 @@ CacheCntlr::getNetworkThreadSemaphore()
     return m_network_thread_sem;
  }
  
@@ -189,7 +245,7 @@ index b966565..0167a6d 100644
 +
  }
 diff --git a/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.h b/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.h
-index 57fe85d..8ded636 100644
+index 57fe85d..d3a4415 100644
 --- a/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.h
 +++ b/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.h
 @@ -17,6 +17,9 @@
@@ -202,7 +258,20 @@ index 57fe85d..8ded636 100644
  
  #include "boost/tuple/tuple.hpp"
  
-@@ -277,6 +280,24 @@ namespace ParametricDramDirectoryMSI
+@@ -241,6 +244,12 @@ namespace ParametricDramDirectoryMSI
+            SubsecondTime mshr_latency;
+            UInt64 prefetches;
+            UInt64 coherency_downgrades, coherency_upgrades, coherency_invalidates, coherency_writebacks;
++           // Size histogram for loads (reads) - tracks actual access sizes in bytes
++           UInt64 load_size_1, load_size_2, load_size_4, load_size_8;
++           UInt64 load_size_16, load_size_32, load_size_64, load_size_other;
++           // Size histogram for stores (writes) - tracks actual access sizes in bytes
++           UInt64 store_size_1, store_size_2, store_size_4, store_size_8;
++           UInt64 store_size_16, store_size_32, store_size_64, store_size_other;
+            #ifdef ENABLE_TRANSITIONS
+            UInt64 transitions[CacheState::NUM_CSTATE_SPECIAL_STATES][CacheState::NUM_CSTATE_SPECIAL_STATES];
+            UInt64 transition_reasons[Transition::NUM_REASONS][CacheState::NUM_CSTATE_SPECIAL_STATES][CacheState::NUM_CSTATE_SPECIAL_STATES];
+@@ -277,6 +286,24 @@ namespace ParametricDramDirectoryMSI
  
           ShmemPerfModel* m_shmem_perf_model;
  
@@ -227,7 +296,7 @@ index 57fe85d..8ded636 100644
           // Core-interfacing stuff
           void accessCache(
                 Core::mem_op_t mem_op_type,
-@@ -350,6 +371,12 @@ namespace ParametricDramDirectoryMSI
+@@ -350,6 +377,12 @@ namespace ParametricDramDirectoryMSI
  
           CacheCntlr* lastLevelCache(void);
  

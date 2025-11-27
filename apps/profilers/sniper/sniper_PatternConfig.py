@@ -2,6 +2,22 @@ import ast
 from profilers.PatternConfig import PatternConfig
 
 class SniperConfig(PatternConfig):
+    def __init__(self, **kwargs):
+        """
+        Initialize SniperConfig with additional size histogram fields.
+
+        Parameters
+        ----------
+        **kwargs : dict
+            Configuration parameters, including size histogram data
+        """
+        # Extract size histograms before calling parent init
+        self.read_size_histogram = kwargs.pop('read_size_histogram', {})
+        self.write_size_histogram = kwargs.pop('write_size_histogram', {})
+
+        # Call parent constructor
+        super().__init__(**kwargs)
+
     @classmethod
     def populating(cls, report_data, level="l2", metadata=None):
         """
@@ -39,6 +55,11 @@ class SniperConfig(PatternConfig):
             "dram": ["dram"]
         }
         prefixes = level_prefix_map.get(level.lower(), [])
+
+        # Size histogram granularity depends on cache level:
+        # - L1: Fine-grained sizes (1, 2, 4, 8, 16, 32, 64 bytes) from actual instruction accesses
+        # - L2/L3/DRAM: Cache-line granularity (64 bytes) since these levels transfer full cache lines
+        use_fine_grained_histogram = level.lower() == "l1"
 
         # Determine core count from first valid list-valued metric
         core_count = 0
@@ -96,8 +117,6 @@ class SniperConfig(PatternConfig):
             return result
 
         pattern_configs = []
-        read_size = 8  # in bytes
-        write_size = 8  # in bytes
 
         for core_id in range(core_count):
             total_reads = 0
@@ -110,6 +129,58 @@ class SniperConfig(PatternConfig):
                 total_reads += get_value(f"{prefix}.loads")[core_id]
                 total_writes += get_value(f"{prefix}.stores")[core_id]
                 workingset_size += get_value(f"{prefix}.workingset-size")[core_id]
+
+            # Build size histograms based on cache level
+            read_size_histogram = {}
+            write_size_histogram = {}
+
+            if use_fine_grained_histogram:
+                # L1 level: Use fine-grained histogram from L1-D (actual instruction access sizes)
+                size_prefix = "L1-D"
+                read_size_histogram = {
+                    "1": get_value(f"{size_prefix}.load-size-1")[core_id],
+                    "2": get_value(f"{size_prefix}.load-size-2")[core_id],
+                    "4": get_value(f"{size_prefix}.load-size-4")[core_id],
+                    "8": get_value(f"{size_prefix}.load-size-8")[core_id],
+                    "16": get_value(f"{size_prefix}.load-size-16")[core_id],
+                    "32": get_value(f"{size_prefix}.load-size-32")[core_id],
+                    "64": get_value(f"{size_prefix}.load-size-64")[core_id],
+                    "other": get_value(f"{size_prefix}.load-size-other")[core_id]
+                }
+                write_size_histogram = {
+                    "1": get_value(f"{size_prefix}.store-size-1")[core_id],
+                    "2": get_value(f"{size_prefix}.store-size-2")[core_id],
+                    "4": get_value(f"{size_prefix}.store-size-4")[core_id],
+                    "8": get_value(f"{size_prefix}.store-size-8")[core_id],
+                    "16": get_value(f"{size_prefix}.store-size-16")[core_id],
+                    "32": get_value(f"{size_prefix}.store-size-32")[core_id],
+                    "64": get_value(f"{size_prefix}.store-size-64")[core_id],
+                    "other": get_value(f"{size_prefix}.store-size-other")[core_id]
+                }
+            else:
+                # L2/L3/DRAM: All accesses are cache-line granularity (64 bytes)
+                # Every read/write at these levels transfers a full cache line
+                read_size_histogram = {
+                    "1": 0, "2": 0, "4": 0, "8": 0,
+                    "16": 0, "32": 0, "64": total_reads, "other": 0
+                }
+                write_size_histogram = {
+                    "1": 0, "2": 0, "4": 0, "8": 0,
+                    "16": 0, "32": 0, "64": total_writes, "other": 0
+                }
+
+            # Calculate dominant size (most common) for backward compatibility
+            if sum(read_size_histogram.values()) > 0:
+                dominant_read_size = max(read_size_histogram.items(), key=lambda x: x[1])[0]
+            else:
+                dominant_read_size = "8"  # Default fallback
+            if sum(write_size_histogram.values()) > 0:
+                dominant_write_size = max(write_size_histogram.items(), key=lambda x: x[1])[0]
+            else:
+                dominant_write_size = "8"  # Default fallback
+
+            read_size = int(dominant_read_size) if dominant_read_size != "other" else 8
+            write_size = int(dominant_write_size) if dominant_write_size != "other" else 8
 
             # Convert per-core time from ns to seconds
             core_time_sec = core_times_ns[core_id] / 1e9 if core_id < len(core_times_ns) else 0.0
@@ -136,6 +207,8 @@ class SniperConfig(PatternConfig):
                 total_writes=total_writes,
                 read_size=read_size,
                 write_size=write_size,
+                read_size_histogram=read_size_histogram,
+                write_size_histogram=write_size_histogram,
                 workingset_size=workingset_size,
                 metadata=metadata,
                 unit=unit_overrides  # Set unit override here

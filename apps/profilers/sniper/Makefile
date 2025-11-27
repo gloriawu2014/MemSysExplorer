@@ -4,6 +4,8 @@ SNIPERSIM_COMMIT=090ac23cf7eed63a684093c1c252bf0efe5f320a
 SNIPERSIM_DIR=$(CURDIR)/snipersim
 PIN_URL=https://software.intel.com/sites/landingpage/pintool/downloads/pin-3.30-98830-g1d7b601b3-gcc-linux.tar.gz
 
+# Default patch directory - can be overridden with PATCH_DIR=...
+PATCH_DIR ?= $(CURDIR)/../../patches
 SNIPERSIM_PATCH=$(PATCH_DIR)/tracing_sniper.patch
 
 .PHONY: all install_snipersim checkout_version build_snipersim clean

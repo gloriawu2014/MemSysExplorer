@@ -55,13 +55,24 @@ all_memory_stats = [
     "dram.reads", "dram.writes", "dram.workingset-size"
 ]
 
+# L1-D size histogram stats - always extracted regardless of level
+# (Size histogram is only tracked at L1-D where actual instruction access sizes are available)
+l1d_size_histogram_stats = [
+    "L1-D.load-size-1", "L1-D.load-size-2", "L1-D.load-size-4", "L1-D.load-size-8",
+    "L1-D.load-size-16", "L1-D.load-size-32", "L1-D.load-size-64", "L1-D.load-size-other",
+    "L1-D.store-size-1", "L1-D.store-size-2", "L1-D.store-size-4", "L1-D.store-size-8",
+    "L1-D.store-size-16", "L1-D.store-size-32", "L1-D.store-size-64", "L1-D.store-size-other"
+]
+
 if level is None:
-    memory_stats = all_memory_stats
+    memory_stats = all_memory_stats + l1d_size_histogram_stats
 elif level not in level_prefix_map:
     print(f"Invalid level: {level}")
     usage()
 else:
+    # Filter by level prefix, but always include L1-D size histogram stats
     memory_stats = [s for s in all_memory_stats if any(s.startswith(prefix) for prefix in level_prefix_map[level])]
+    memory_stats += l1d_size_histogram_stats
 
 def print_result(key, value):
     """Prints and stores results in a dictionary without brackets."""
