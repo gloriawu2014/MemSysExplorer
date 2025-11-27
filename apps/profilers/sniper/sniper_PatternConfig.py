@@ -61,26 +61,45 @@ class SniperConfig(PatternConfig):
         # - L2/L3/DRAM: Cache-line granularity (64 bytes) since these levels transfer full cache lines
         use_fine_grained_histogram = level.lower() == "l1"
 
-        # Determine core count from first valid list-valued metric
+        # Determine core count from core_time (most reliable indicator)
+        # or from first valid list-valued metric
         core_count = 0
         example_key = None
-        for k, v in report_data.items():
-            if any(k.startswith(p) for p in prefixes):
-                try:
-                    if isinstance(v, list):
-                        core_count = len(v)
+
+        # First try core_time as it's always present and reliable
+        core_time_val = report_data.get("core_time", [])
+        if isinstance(core_time_val, list) and len(core_time_val) > 0:
+            core_count = len(core_time_val)
+            example_key = "core_time"
+        else:
+            # Fall back to searching for list-valued metrics
+            for k, v in report_data.items():
+                if any(k.startswith(p) for p in prefixes):
+                    try:
+                        if isinstance(v, list):
+                            core_count = len(v)
+                            example_key = k
+                            break
+                        parsed = ast.literal_eval(v)
+                        if isinstance(parsed, list):
+                            core_count = len(parsed)
+                            example_key = k
+                            break
+                    except Exception:
+                        continue
+
+        # If still no core count found, check if we have scalar values (single core)
+        if core_count == 0:
+            # Check if there are any metrics with the level prefix that are scalars
+            for k, v in report_data.items():
+                if any(k.startswith(p) for p in prefixes):
+                    if isinstance(v, (int, float)) or (isinstance(v, str) and v not in ["N/A", ""]):
+                        core_count = 1
                         example_key = k
                         break
-                    parsed = ast.literal_eval(v)
-                    if isinstance(parsed, list):
-                        core_count = len(parsed)
-                        example_key = k
-                        break
-                except Exception:
-                    continue
 
         if core_count == 0 or example_key is None:
-            raise ValueError(f"No valid list-valued metrics found for level: {level}")
+            raise ValueError(f"No valid metrics found for level: {level}")
 
         # Extract per-core execution time in nanoseconds
         core_times_ns = report_data.get("core_time", [])
@@ -94,18 +113,25 @@ class SniperConfig(PatternConfig):
         elif len(core_times_ns) > core_count:
             core_times_ns = core_times_ns[:core_count]
 
-        # Safe helper for parsing list-valued metrics
+        # Safe helper for parsing metrics (handles both scalar and list values)
         def get_value(metric, default=0):
             raw = report_data.get(metric)
             if raw is None or raw == "N/A":
                 return [default] * core_count
             try:
+                # Handle already-list values
                 if isinstance(raw, list):
                     result = raw
+                # Handle scalar numeric values (single core)
+                elif isinstance(raw, (int, float)):
+                    result = [raw]
+                # Try parsing string as Python literal
                 else:
-                    result = ast.literal_eval(raw)
-                    if not isinstance(result, list):
-                        result = [result]
+                    parsed = ast.literal_eval(raw)
+                    if isinstance(parsed, list):
+                        result = parsed
+                    else:
+                        result = [parsed]
             except Exception:
                 return [default] * core_count
 

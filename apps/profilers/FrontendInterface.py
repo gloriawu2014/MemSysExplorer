@@ -109,6 +109,29 @@ class FrontendInterface(ABC):
         return []
 
     @classmethod
+    def optional_profiling_args(cls):
+        """
+        Return a list of optional argument definitions for profiling phase.
+
+        Subclasses may override this to return profiler-specific optional
+        arguments (e.g., ROI control, instruction counts, sampling options).
+
+        Each argument definition is a dictionary with keys:
+        - name: str - argument name (without --)
+        - type: type - argument type (int, str, etc.), optional
+        - default: any - default value, optional
+        - choices: list - valid choices, optional
+        - action: str - argparse action ('store_true', etc.), optional
+        - help: str - help text
+
+        Returns
+        -------
+        list of dict
+            List of optional argument definitions for argparse.
+        """
+        return []
+
+    @classmethod
     def register_profiler(cls, name, profiler_class):
         """
         Register a profiler class under a given name.
