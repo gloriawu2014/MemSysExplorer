@@ -28,8 +28,8 @@ You can find the source code and contribute to the project on GitHub:
 
    **MemSysExplorer GitHub Repository**
 
-   Explore the codebase, raise issues, or contribute at: https://github.com/lpentecost/MemSys-Playground/tree/gpu-app/apps
-   
+   Explore the codebase, raise issues, or contribute at: https://github.com/duca181/MemSysExplorer/tree/apps_dev/apps
+
    To learn more about license terms and third-party attribution, refer to the :doc:`licensing` page.
 
 .. figure:: _static/Framework.png

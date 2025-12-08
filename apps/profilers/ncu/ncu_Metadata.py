@@ -1,4 +1,5 @@
 import subprocess
+import os
 from profilers.BaseMetadata import BaseMetadata
 
 class NsightMetadata(BaseMetadata):
@@ -9,7 +10,9 @@ class NsightMetadata(BaseMetadata):
         """
         self.cuda_version = None
         self.nsight_version = None
-        super().__init__()
+        # Pass the current profiler directory to BaseMetadata
+        current_profiler_dir = os.path.dirname(os.path.abspath(__file__))
+        super().__init__(profiler_dir=current_profiler_dir)
         self._collect_nsight_info()
 
     def _collect_nsight_info(self):

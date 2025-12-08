@@ -4,7 +4,7 @@
 This section references all profiler modules documented from the codebase at:
 
 **Local Path:**
-    ``MemSys-Playground/apps``
+    ``MemSysExplorer/apps``
 
 .. toctree::
    :maxdepth: 4

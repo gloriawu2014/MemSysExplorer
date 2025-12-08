@@ -1,0 +1,28 @@
+# MemCount Configuration File
+# This file controls the behavior of the memcount DynamoRIO client
+# Format: key=value (one per line)
+
+# Cache and Memory Parameters
+cache_line_size=64
+hll_bits=8
+sample_hll_bits=8
+sample_window_refs=2000
+max_mem_refs=8192
+
+# Output Control
+enable_trace=false
+wss_stat_tracking=false
+
+# WSS Tracking Methods
+wss_exact_tracking=true
+wss_hll_tracking=false
+
+# Instruction Threshold Control
+# Set enable_instruction_threshold=true to terminate after a specific number of instructions
+# Useful for testing or limiting profiling to a specific instruction count
+enable_instruction_threshold=false
+instruction_threshold=100000000
+
+# Protobuf Output Files (base names, process ID will be appended)
+pb_trace_output=memtrace
+pb_timeseries_output=timeseries

@@ -2,6 +2,11 @@ import subprocess
 import os
 import re
 import platform
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'tools'))
+from environment_capture import EnvironmentCapture
+from makefile_parser import get_single_profiler_build_metadata
+from profiler_flag_parser import ProfilerFlagParser
 
 class BaseMetadata:
     """
@@ -15,11 +20,9 @@ class BaseMetadata:
     - Cache hierarchy from sysfs
     - DRAM size from `/proc/meminfo`
     - Software environment details such as:
-        * OS and kernel version
-        * Compiler versions (AOCC, GCC, Clang)
-        * BIOS/Firmware version (via `dmidecode`)
-        * Filesystem type of root partition
-        * Power management policy (e.g., CPU frequency governor)
+    - Environment capture details such as:
+    - Build metadata from Makefiles such as:
+    - Profiler flags and commands such as:
 
     Methods
     -------
@@ -33,6 +36,12 @@ class BaseMetadata:
         Returns dictionary of L1d, L1i, L2, L3 cache sizes.
     dram_info() : dict
         Returns total physical memory (DRAM) in MB.
+    environment_info() : dict
+        Returns environment capture data including variables and system info.
+    build_info() : dict
+        Returns build metadata extracted from Makefiles.
+    profiler_flag_info() : dict
+        Returns profiler-specific flags and command information.
 
     Usage
     -----
@@ -45,7 +54,7 @@ class BaseMetadata:
     `dmidecode` for firmware data. Error handling is included to ensure graceful degradation
     if any tools or files are missing.
     """
-    def __init__(self):
+    def __init__(self, profiler_dir=None):
         self.gpu_name = None
         self.driver_version = None
         self.memory_size = None  # in MB
@@ -53,6 +62,10 @@ class BaseMetadata:
         self.cache_info_data = {}
         self.dram_size_MB = None
         self.software_info_data = {}
+        self.environment_data = {}
+        self.build_metadata = {}
+        self.profiler_flags = {}
+        self.profiler_dir = profiler_dir
         self._collect()
 
     def _collect(self):
@@ -61,6 +74,9 @@ class BaseMetadata:
         self._collect_cache_info()
         self._collect_dram_size()
         self._collect_software_info()
+        self._collect_environment_info()
+        self._collect_build_metadata()
+        self._collect_profiler_flags()
 
     # New method
     def _collect_software_info(self):
@@ -96,6 +112,38 @@ class BaseMetadata:
                 self.software_info_data["PowerPolicy"] = "Unavailable"
         except Exception as e:
             self.software_info_data = {"Error": str(e)}
+
+    def _collect_environment_info(self):
+        try:
+            env_capture = EnvironmentCapture()
+            self.environment_data = env_capture.to_dict()
+        except Exception as e:
+            self.environment_data = {"Error": str(e)}
+
+    def _collect_build_metadata(self):
+        try:
+            # If profiler_dir is provided, use it; otherwise use current directory
+            if self.profiler_dir:
+                target_dir = self.profiler_dir
+            else:
+                target_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            self.build_metadata = get_single_profiler_build_metadata(target_dir)
+        except Exception as e:
+            self.build_metadata = {"Error": str(e)}
+
+    def _collect_profiler_flags(self):
+        try:
+            # If profiler_dir is provided, use it; otherwise use current directory
+            if self.profiler_dir:
+                target_dir = self.profiler_dir
+            else:
+                target_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            flag_parser = ProfilerFlagParser()
+            self.profiler_flags = flag_parser.extract_flags(target_dir)
+        except Exception as e:
+            self.profiler_flags = {"Error": str(e)}
 
 
     def _collect_gpu_info(self):
@@ -180,13 +228,25 @@ class BaseMetadata:
     def dram_info(self):
         return {"dram_size_MB": self.dram_size_MB}
 
+    def environment_info(self):
+        return self.environment_data
+
+    def build_info(self):
+        return self.build_metadata
+
+    def profiler_flag_info(self):
+        return self.profiler_flags
+
     def as_dict(self):
         return {
             **self.gpu_info(),
             "cpu_info": self.cpu_info_data,
             "cpu_cache": self.cache_info_data,
             "dram_size_MB": self.dram_size_MB,
-            "software_info": self.software_info_data
+            "software_info": self.software_info_data,
+            "environment_info": self.environment_data,
+            "build_metadata": self.build_metadata,
+            "profiler_flags": self.profiler_flags
         }
 
     def __repr__(self):

@@ -30,21 +30,39 @@
 # DAMAGE.
 
 cmake_minimum_required(VERSION 3.7)
+project(memsys C)
 
-project(memsys)
+find_package(DynamoRIO REQUIRED)
 
-find_package(DynamoRIO)
-if (NOT DynamoRIO_FOUND)
-  message(FATAL_ERROR "DynamoRIO package required to build")
-endif(NOT DynamoRIO_FOUND)
+# Add the common library
+add_subdirectory(../../../common common)
 
-function (add_client name source_file_list extension_list) 
+function(add_client name source_file_list extension_list)
     add_library(${name} SHARED ${source_file_list})
-    configure_DynamoRIO_client(${name}) 
-    foreach (ext ${extension_list}) 
+    configure_DynamoRIO_client(${name})
+
+    foreach(ext ${extension_list})
         use_DynamoRIO_extension(${name} ${ext})
-    endforeach (ext)
+    endforeach()
 
-endfunction (add_client)
+    # Link the common library
+    target_link_libraries(${name} profiler_common)
 
-add_client(memcount "memcount.c;utils.c" "drcontainers;drmgr;drreg;drutil;drx")
+    # Add RPATH so the shared library can find dependencies at runtime
+    if(UNIX AND NOT APPLE)
+        set_target_properties(${name} PROPERTIES
+            BUILD_RPATH_USE_ORIGIN ON
+            INSTALL_RPATH "\$ORIGIN/../lib"
+        )
+
+        # Link libm with plain signature to match DynamoRIO's usage
+        target_link_libraries(${name} m)
+    endif()
+endfunction()
+
+add_client(
+    memcount
+    "memcount.c;utils.c"
+    "drcontainers;drmgr;drreg;drutil;drx"
+)
+

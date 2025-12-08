@@ -8,7 +8,7 @@ MemSysExplorer includes built-in support for collecting **system-level metadata*
    The `BaseMetadata` class assumes a **Linux-based system**. Users on other platforms may encounter incomplete or missing metadata fields unless modified.
 
    The `BaseMetadata` implementation can be found in the repository here:
-   `BaseMetadata.py <https://github.com/lpentecost/MemSys-Playground/blob/gpu-app/apps/profilers/BaseMetadata.py>`_
+   `BaseMetadata.py <https://github.com/duca181/MemSysExplorer/blob/apps_dev/apps/profilers/BaseMetadata.py>`_
 
    In the future, we will provide **community metadata profiles** collected from different systems to help users compare and calibrate workload behaviors across architectures.
 

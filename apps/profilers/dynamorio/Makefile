@@ -45,10 +45,20 @@ build_client:
 		echo "Error: build.sh not found in $(CURDIR)/build. Ensure the script is present."; \
 		exit 1; \
 	fi
-	
+
+	# Setup protobuf paths for building the client
+	$(eval APPS_HOME := $(shell cd ../../ && pwd))
+	$(eval THIRD_PARTY_DIR := $(APPS_HOME)/third_party)
+	$(eval PROTOBUF_PREFIX := $(THIRD_PARTY_DIR)/protobuf)
+	$(eval PROTOBUF_C_PREFIX := $(THIRD_PARTY_DIR)/protobuf-c)
+
 	cd $(CURDIR)/build && \
 		export DYNAMORIO_HOME=$(DYNAMORIO_BUILD)/cmake && \
-		export CMAKE_PREFIX_PATH=$(DYNAMORIO_BUILD)/cmake && \
+		export PATH=$(PROTOBUF_C_PREFIX)/bin:$(PROTOBUF_PREFIX)/bin:$$PATH && \
+		export LD_LIBRARY_PATH=$(PROTOBUF_C_PREFIX)/lib:$(PROTOBUF_PREFIX)/lib:$$LD_LIBRARY_PATH && \
+		export LIBRARY_PATH=$(PROTOBUF_C_PREFIX)/lib:$(PROTOBUF_PREFIX)/lib:$$LIBRARY_PATH && \
+		export PKG_CONFIG_PATH=$(PROTOBUF_C_PREFIX)/lib/pkgconfig:$(PROTOBUF_PREFIX)/lib/pkgconfig:$$PKG_CONFIG_PATH && \
+		export CMAKE_PREFIX_PATH=$(PROTOBUF_C_PREFIX):$(PROTOBUF_PREFIX):$(DYNAMORIO_BUILD)/cmake:$$CMAKE_PREFIX_PATH && \
 		sh build.sh
 
 	@echo "Client built successfully."

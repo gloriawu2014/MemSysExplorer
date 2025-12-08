@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package memsys.timeseries;
+
+option cc_enable_arenas = true;
+
+// Top-level container for ALL time-series samples from a profiling run
+// This is written to a single .pb file containing samples from all threads
+message TimeSeriesData {
+  // Metadata about this profiling run
+  RunMetadata metadata = 1;
+
+  // All time-series samples from all threads
+  repeated SampleWindow samples = 2;
+}
+
+// Metadata about the profiling run
+message RunMetadata {
+  string profiler = 1;           // "dynamorio", "nvbit", etc.
+  uint32 pid = 2;                // Process ID
+  uint64 start_timestamp = 3;    // Start time (microseconds)
+  string command = 4;            // Command that was profiled
+
+  // Sampling configuration
+  uint32 sample_window_refs = 5; // Number of refs per window
+  uint32 cache_line_size = 6;    // Cache line size in bytes
+  uint32 num_threads = 7;        // Total number of threads
+}
+
+// Single sample window with metrics
+// Multiple threads write their samples to the same file
+message SampleWindow {
+  uint64 window_number = 1;      // Window index (0, 1, 2, ...)
+  uint32 thread_id = 2;          // Thread ID that generated this sample
+
+  // Memory operation counts
+  uint64 read_count = 3;         // Number of read operations
+  uint64 write_count = 4;        // Number of write operations
+  uint64 total_refs = 5;         // Total references in this window (read_count + write_count)
+
+  // Working set size metrics
+  uint64 wss_exact = 6;          // Exact WSS (from ws_tsearch)
+  double wss_approx = 7;         // Approximate WSS (from HLL)
+
+  uint64 timestamp = 8;          // Sample timestamp (microseconds)
+
+  // Read size breakdown (bytes)
+  uint64 read_size_1 = 9;        // 1-byte reads
+  uint64 read_size_2 = 10;       // 2-byte reads
+  uint64 read_size_4 = 11;       // 4-byte reads
+  uint64 read_size_8 = 12;       // 8-byte reads
+  uint64 read_size_16 = 13;      // 16-byte reads
+  uint64 read_size_32 = 14;      // 32-byte reads
+  uint64 read_size_64 = 15;      // 64-byte reads
+  uint64 read_size_other = 16;   // Other size reads
+
+  // Write size breakdown (bytes)
+  uint64 write_size_1 = 17;      // 1-byte writes
+  uint64 write_size_2 = 18;      // 2-byte writes
+  uint64 write_size_4 = 19;      // 4-byte writes
+  uint64 write_size_8 = 20;      // 8-byte writes
+  uint64 write_size_16 = 21;     // 16-byte writes
+  uint64 write_size_32 = 22;     // 32-byte writes
+  uint64 write_size_64 = 23;     // 64-byte writes
+  uint64 write_size_other = 24;  // Other size writes
+}

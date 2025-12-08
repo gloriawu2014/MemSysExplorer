@@ -6,7 +6,7 @@
 - **Lillian Pentecost** (Amherst College)
 - **Olivia Fann** (Amherst College)
 - **Tania Perehinets** (Smith College)
-
+---
 
 # Getting Started
 
@@ -129,13 +129,13 @@ To enable performance counters on NVIDIA GPUs, please follow the instructions pr
 To get started with MemSysExplorer, begin by cloning the repository from GitHub. This repository contains the full source code for the application profiler, including frontend tools, example workloads, and configuration scripts.
 
 ```bash
-git clone https://github.com/lpentecost/MemSys-Playground.git
+git clone -b apps_dev https://github.com/duca181/MemSysExplorer.git
 ```
 
 After cloning, navigate into the repository directory:
 
 ```bash
-cd MemSys-Playground
+cd MemSysExplorer/apps
 ```
 
 The repository includes a top-level `Makefile` that supports building and configuring five available profilers:
@@ -268,6 +268,12 @@ Additional arguments such as core count or configuration files may be required d
 
 ```bash
 python3 main.py --profiler dynamorio --action profiling --executable /path/to/your/executable
+```
+
+Optionally, specify a configuration file to control profiling behavior (trace output, sampling windows, instruction thresholds, etc.):
+
+```bash
+python3 main.py --profiler dynamorio --action profiling --config config/memcount_config.txt --executable /path/to/your/executable
 ```
 
 **Linux Perf:**

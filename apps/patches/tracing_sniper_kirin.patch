@@ -1,0 +1,515 @@
+diff --git a/Makefile b/Makefile
+index f594145..8b6be45 100644
+--- a/Makefile
++++ b/Makefile
+@@ -186,10 +186,11 @@ $(XED_INSTALL_DEP):
+ 	$(_CMD) git -C $(XED_INSTALL) reset --quiet --hard $(XED_GITID)
+ 
+ XED_DEP=$(XED_HOME)/include/xed/xed-iclass-enum.h
++XED_PYTHON=/usr/bin/python3
+ xed: mbuild xed_install $(XED_DEP)
+ $(XED_DEP): $(XED_INSTALL_DEP)
+ 	$(_MSG) '[INSTAL] xed'
+-	$(_CMD) cd $(XED_INSTALL) ; ./mfile.py --silent --extra-flags=-fPIC --shared --install-dir $(XED_HOME) install
++	$(_CMD) cd $(XED_INSTALL) ; ./mfile.py --python $(XED_PYTHON) --silent --extra-flags=-fPIC --shared --install-dir $(XED_HOME) install
+ 
+ ifneq (,$(USE_PIN))
+ PIN_DOWNLOAD=https://snipersim.org/packages/pin-external-3.31-98869-gfa6f126a8-gcc-linux.tar.gz
+diff --git a/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.cc b/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.cc
+index b966565..0167a6d 100644
+--- a/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.cc
++++ b/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.cc
+@@ -152,7 +152,10 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
+    m_last_remote_hit_where(HitWhere::UNKNOWN),
+    m_shmem_perf(new ShmemPerf()),
+    m_shmem_perf_global(NULL),
+-   m_shmem_perf_model(shmem_perf_model)
++   m_shmem_perf_model(shmem_perf_model),
++   m_trace_enabled(false),
++   m_trace_filename("cache_trace.out"),
++   m_trace_buffer_size(1024)
+ {
+    m_core_id_master = m_core_id - m_core_id % m_shared_cores;
+    Sim()->getStatsManager()->logTopology(name, core_id, m_core_id_master);
+@@ -280,10 +283,36 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
+       registerStatsMetric(name, core_id, "uncore-totaltime", &m_shmem_perf_totaltime);
+       registerStatsMetric(name, core_id, "uncore-requests", &m_shmem_perf_numrequests);
+    }
++
++   //Cache Tracing Configuration
++   String cache_config_name = "perf_model/" + cache_params.configName + "/trace_enabled";
++   if (Sim()->getCfg()->hasKey(cache_config_name) &&
++       Sim()->getCfg()->getBool(cache_config_name))
++   {
++       m_trace_enabled = true;
++       
++       String trace_file_config = "perf_model/" + cache_params.configName + "/trace_file";
++       if (Sim()->getCfg()->hasKey(trace_file_config))
++           m_trace_filename = Sim()->getCfg()->getString(trace_file_config).c_str();
++       else
++           m_trace_filename = "cache_trace.out";
++           
++       String buffer_size_config = "perf_model/" + cache_params.configName + "/trace_buffer_size";
++       if (Sim()->getCfg()->hasKey(buffer_size_config))
++           m_trace_buffer_size = Sim()->getCfg()->getInt(buffer_size_config);
++       else
++           m_trace_buffer_size = 1024;
++           
++       initializeTracing();
++   }
+ }
+ 
+ CacheCntlr::~CacheCntlr()
+ {
++   if (m_trace_enabled) {
++       finalizeTracing();
++   }
++
+    if (isMasterCache())
+    {
+       delete m_master;
+@@ -388,6 +417,25 @@ LOG_ASSERT_ERROR(offset + data_length <= getCacheBlockSize(), "access until %u >
+       cache_block_info = NULL;
+    }
+ 
++   //Cache Tracing: Capture L1 cache access with unified format
++   if (m_trace_enabled) {
++       char operation = (mem_op_type == Core::WRITE) ? 'W' : 'R';
++       char hit_miss = cache_hit ? 'H' : 'M';
++       // Convert MemComponent enum to logical cache level
++       uint32_t level;
++       switch(m_mem_component) {
++           case MemComponent::L1_ICACHE: level = 1; break;
++           case MemComponent::L1_DCACHE: level = 1; break;
++           case MemComponent::L2_CACHE:  level = 2; break;
++           case MemComponent::L3_CACHE:  level = 3; break;
++           case MemComponent::L4_CACHE:  level = 4; break;
++           default: level = 0; break; // Unknown level
++       }
++       uint64_t timestamp = getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD).getNS();
++       
++       writeTrace(m_core_id, level, ca_address, operation, hit_miss, getCacheBlockSize(), timestamp);
++   }
++
+    if (count)
+    {
+       ScopedLock sl(getLock());
+@@ -793,6 +841,26 @@ CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester, Core::mem_op_t m
+    HitWhere::where_t hit_where = HitWhere::MISS;
+    SharedCacheBlockInfo* cache_block_info = getCacheBlockInfo(address);
+ 
++   //Cache Tracing: Capture inter-cache level access (L2/L3/L4)
++   if (m_trace_enabled && isPrefetch == Prefetch::NONE) { // Skip prefetch accesses to avoid noise
++       char operation = (mem_op_type == Core::WRITE) ? 'W' : 'R';
++       char hit_miss = cache_hit ? 'H' : 'M';
++       // Convert MemComponent enum to logical cache level
++       uint32_t level;
++       switch(m_mem_component) {
++           case MemComponent::L1_ICACHE: level = 1; break;
++           case MemComponent::L1_DCACHE: level = 1; break;
++           case MemComponent::L2_CACHE:  level = 2; break;
++           case MemComponent::L3_CACHE:  level = 3; break;
++           case MemComponent::L4_CACHE:  level = 4; break;
++           default: level = 0; break; // Unknown level
++       }
++       uint64_t timestamp = getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD).getNS();
++       core_id_t requester_core = requester ? requester->m_core_id : m_core_id;
++       
++       writeTrace(requester_core, level, address, operation, hit_miss, getCacheBlockSize(), timestamp);
++   }
++
+    if (!cache_hit && m_perfect)
+    {
+       cache_hit = true;
+@@ -2303,4 +2371,83 @@ CacheCntlr::getNetworkThreadSemaphore()
+    return m_network_thread_sem;
+ }
+ 
++//Cache Tracing Methods Implementation
++void
++CacheCntlr::initializeTracing()
++{
++    if (!m_trace_enabled) return;
++    
++    // Create unique filename per core (unified cache file)
++    std::string unique_filename = m_trace_filename;
++    size_t dot_pos = unique_filename.find_last_of('.');
++    if (dot_pos != std::string::npos) {
++        unique_filename.insert(dot_pos, "_core" + std::to_string(m_core_id));
++    } else {
++        unique_filename += "_core" + std::to_string(m_core_id);
++    }
++    
++    m_trace_file.open(unique_filename.c_str(), std::ios::out | std::ios::trunc);
++    if (!m_trace_file.is_open()) {
++        LOG_PRINT_ERROR("Could not open cache trace file: %s", unique_filename.c_str());
++        m_trace_enabled = false;
++        return;
++    }
++
++    // Write CSV header
++    m_trace_file << "timestamp,thread_id,level,address,operation,h/m,access_size" << std::endl;
++    
++    // Reserve buffer space
++    m_trace_buffer.reserve(m_trace_buffer_size);
++}
++
++void
++CacheCntlr::finalizeTracing()
++{
++    if (!m_trace_enabled) return;
++
++    ScopedLock lock(m_trace_lock);
++    
++    // Flush any remaining traces
++    if (!m_trace_buffer.empty()) {
++        flushTraceBuffer();
++    }
++    
++    if (m_trace_file.is_open()) {
++        m_trace_file.close();
++    }
++}
++
++void
++CacheCntlr::writeTrace(core_id_t thread_id, uint32_t level, IntPtr address, char op, char hit_miss, uint32_t size, uint64_t timestamp)
++{
++    if (!m_trace_enabled) return;
++    
++    ScopedLock lock(m_trace_lock);
++    
++    TraceEntry entry = {timestamp, thread_id, level, address, op, hit_miss, size};
++    m_trace_buffer.push_back(entry);
++    
++    if (m_trace_buffer.size() >= m_trace_buffer_size) {
++        flushTraceBuffer();
++    }
++}
++
++void
++CacheCntlr::flushTraceBuffer()
++{
++    if (!m_trace_file.is_open()) return;
++
++    for (const auto& entry : m_trace_buffer) {
++        m_trace_file << entry.timestamp << "," 
++                     << entry.thread_id << ","
++                     << entry.level << ","
++                     << "0x" << std::hex << entry.address << std::dec << ","
++                     << entry.operation << ","
++                     << entry.hit_miss << ","
++                     << entry.access_size << std::endl;
++    }
++    m_trace_buffer.clear();
++    m_trace_file.flush(); // Ensure data is written to disk
++}
++
+ }
+diff --git a/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.h b/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.h
+index 57fe85d..8ded636 100644
+--- a/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.h
++++ b/common/core/memory_subsystem/parametric_dram_directory_msi/cache_cntlr.h
+@@ -17,6 +17,9 @@
+ #include "stats.h"
+ #include "subsecond_time.h"
+ #include "shmem_perf.h"
++#include <vector>
++#include <fstream>
++#include <string>
+ 
+ #include "boost/tuple/tuple.hpp"
+ 
+@@ -277,6 +280,24 @@ namespace ParametricDramDirectoryMSI
+ 
+          ShmemPerfModel* m_shmem_perf_model;
+ 
++         //Cache Tracing Configuration
++         struct TraceEntry {
++             uint64_t timestamp;
++             core_id_t thread_id;
++             uint32_t level;
++             IntPtr address;
++             char operation; // 'R', 'W', 'E' (evict), 'I' (invalidate)
++             char hit_miss; // 'H' (hit), 'M' (miss)
++             uint32_t access_size;
++         };
++
++         bool m_trace_enabled;
++         std::string m_trace_filename;
++         std::ofstream m_trace_file;
++         std::vector<TraceEntry> m_trace_buffer;
++         size_t m_trace_buffer_size;
++         mutable Lock m_trace_lock;
++
+          // Core-interfacing stuff
+          void accessCache(
+                Core::mem_op_t mem_op_type,
+@@ -350,6 +371,12 @@ namespace ParametricDramDirectoryMSI
+ 
+          CacheCntlr* lastLevelCache(void);
+ 
++         //Cache Tracing Methods
++         void writeTrace(core_id_t thread_id, uint32_t level, IntPtr address, char op, char hit_miss, uint32_t size, uint64_t timestamp);
++         void flushTraceBuffer();
++         void initializeTracing();
++         void finalizeTracing();
++
+       public:
+ 
+          CacheCntlr(MemComponent::component_t mem_component,
+diff --git a/common/core/memory_subsystem/pr_l1_pr_l2_dram_directory_msi/dram_cntlr.cc b/common/core/memory_subsystem/pr_l1_pr_l2_dram_directory_msi/dram_cntlr.cc
+index f8de56f..a473ee0 100644
+--- a/common/core/memory_subsystem/pr_l1_pr_l2_dram_directory_msi/dram_cntlr.cc
++++ b/common/core/memory_subsystem/pr_l1_pr_l2_dram_directory_msi/dram_cntlr.cc
+@@ -6,6 +6,7 @@
+ #include "stats.h"
+ #include "fault_injection.h"
+ #include "shmem_perf.h"
++#include "config.hpp"
+ 
+ #if 0
+    extern Lock iolock;
+@@ -39,10 +40,37 @@ DramCntlr::DramCntlr(MemoryManagerBase* memory_manager,
+    m_dram_access_count = new AccessCountMap[DramCntlrInterface::NUM_ACCESS_TYPES];
+    registerStatsMetric("dram", memory_manager->getCore()->getId(), "reads", &m_reads);
+    registerStatsMetric("dram", memory_manager->getCore()->getId(), "writes", &m_writes);
++   
++    //Tracing Configuration
++    if (Sim()->getCfg()->hasKey("perf_model/dram/trace_enabled") &&
++        Sim()->getCfg()->getBool("perf_model/dram/trace_enabled"))
++    {
++        m_trace_enabled = true;
++        
++        if (Sim()->getCfg()->hasKey("perf_model/dram/trace_file"))
++            m_trace_filename = Sim()->getCfg()->getString("perf_model/dram/trace_file").c_str();
++        else
++            m_trace_filename = "dram_trace.out";
++            
++        if (Sim()->getCfg()->hasKey("perf_model/dram/trace_buffer_size"))
++            m_trace_buffer_size = Sim()->getCfg()->getInt("perf_model/dram/trace_buffer_size");
++        else
++            m_trace_buffer_size = 1024;
++            
++        initializeTracing();
++    }
++    else {
++        m_trace_enabled = false;
++    }
++
+ }
+ 
+ DramCntlr::~DramCntlr()
+ {
++   if (m_trace_enabled) {
++       finalizeTracing();
++   }
++
+    printDramAccessCount();
+    delete [] m_dram_access_count;
+ 
+@@ -68,6 +96,11 @@ DramCntlr::getDataFromDram(IntPtr address, core_id_t requester, Byte* data_buf,
+    }
+ 
+    SubsecondTime dram_access_latency = runDramPerfModel(requester, now, address, READ, perf);
++   
++   //Tracing: Capture read access
++   if (m_trace_enabled) {
++       writeTrace(requester, address, 'R', getCacheBlockSize(), now.getNS());
++   }
+ 
+    ++m_reads;
+    #ifdef ENABLE_DRAM_ACCESS_COUNT
+@@ -96,6 +129,11 @@ DramCntlr::putDataToDram(IntPtr address, core_id_t requester, Byte* data_buf, Su
+ 
+    SubsecondTime dram_access_latency = runDramPerfModel(requester, now, address, WRITE, &m_dummy_shmem_perf);
+ 
++   //Tracing: Capture write access
++   if (m_trace_enabled) {
++       writeTrace(requester, address, 'W', getCacheBlockSize(), now.getNS());
++   }
++
+    ++m_writes;
+    #ifdef ENABLE_DRAM_ACCESS_COUNT
+    addToDramAccessCount(address, WRITE);
+@@ -117,6 +155,7 @@ void
+ DramCntlr::addToDramAccessCount(IntPtr address, DramCntlrInterface::access_t access_type)
+ {
+    m_dram_access_count[access_type][address] = m_dram_access_count[access_type][address] + 1;
++   
+ }
+ 
+ void
+@@ -136,4 +175,83 @@ DramCntlr::printDramAccessCount()
+    }
+ }
+ 
++//Tracing Methods Implementation
++void
++DramCntlr::initializeTracing()
++{
++    if (!m_trace_enabled) return;
++
++    // Create unique filename per core
++    std::string unique_filename = m_trace_filename;
++    size_t dot_pos = unique_filename.find_last_of(".");
++    if (dot_pos != std::string::npos) {
++        unique_filename = unique_filename.substr(0, dot_pos) + "_core" + 
++                         std::to_string(m_memory_manager->getCore()->getId()) + 
++                         unique_filename.substr(dot_pos);
++    } else {
++        unique_filename += "_core" + std::to_string(m_memory_manager->getCore()->getId());
++    }
++
++    m_trace_file.open(unique_filename);
++    if (!m_trace_file.is_open()) {
++        LOG_PRINT_ERROR("Failed to open DRAM trace file: %s", unique_filename.c_str());
++        m_trace_enabled = false;
++        return;
++    }
++
++    // Write CSV header
++    m_trace_file << "timestamp,thread_id,address,operation,access_size" << std::endl;
++    
++    // Reserve buffer space
++    m_trace_buffer.reserve(m_trace_buffer_size);
++}
++
++void
++DramCntlr::finalizeTracing()
++{
++    if (!m_trace_enabled) return;
++
++    ScopedLock lock(m_trace_lock);
++    
++    // Flush any remaining traces
++    if (!m_trace_buffer.empty()) {
++        flushTraceBuffer();
++    }
++    
++    if (m_trace_file.is_open()) {
++        m_trace_file.close();
++    }
++}
++
++void
++DramCntlr::writeTrace(core_id_t thread_id, IntPtr address, char op, uint32_t size, uint64_t timestamp)
++{
++    if (!m_trace_enabled) return;
++    
++    ScopedLock lock(m_trace_lock);
++    
++    TraceEntry entry = {timestamp, thread_id, address, op, size};
++    m_trace_buffer.push_back(entry);
++    
++    if (m_trace_buffer.size() >= m_trace_buffer_size) {
++        flushTraceBuffer();
++    }
++}
++
++void
++DramCntlr::flushTraceBuffer()
++{
++    if (!m_trace_file.is_open()) return;
++
++    for (const auto& entry : m_trace_buffer) {
++        m_trace_file << entry.timestamp << "," 
++                     << entry.thread_id << ","
++                     << "0x" << std::hex << entry.address << std::dec << ","
++                     << entry.operation << ","
++                     << entry.access_size << std::endl;
++    }
++    m_trace_buffer.clear();
++    m_trace_file.flush(); // Ensure data is written to disk
++}
++
+ }
+diff --git a/common/core/memory_subsystem/pr_l1_pr_l2_dram_directory_msi/dram_cntlr.h b/common/core/memory_subsystem/pr_l1_pr_l2_dram_directory_msi/dram_cntlr.h
+index 3379a9d..5222727 100644
+--- a/common/core/memory_subsystem/pr_l1_pr_l2_dram_directory_msi/dram_cntlr.h
++++ b/common/core/memory_subsystem/pr_l1_pr_l2_dram_directory_msi/dram_cntlr.h
+@@ -12,6 +12,10 @@
+ #include "memory_manager_base.h"
+ #include "dram_cntlr_interface.h"
+ #include "subsecond_time.h"
++#include <vector>
++#include <fstream>
++#include <string>
++#include "lock.h"
+ 
+ class FaultInjector;
+ 
+@@ -35,6 +39,23 @@ namespace PrL1PrL2DramDirectoryMSI
+          void addToDramAccessCount(IntPtr address, access_t access_type);
+          void printDramAccessCount(void);
+ 
++
++         //Tracing Configuration
++         struct TraceEntry {
++             uint64_t timestamp;
++             core_id_t thread_id;
++             IntPtr address;
++             char operation; // 'R' or 'W'
++             uint32_t access_size;
++         };
++
++         bool m_trace_enabled;
++         std::string m_trace_filename;
++         std::ofstream m_trace_file;
++         std::vector<TraceEntry> m_trace_buffer;
++         size_t m_trace_buffer_size;
++         mutable Lock m_trace_lock;
++
+       public:
+          DramCntlr(MemoryManagerBase* memory_manager,
+                ShmemPerfModel* shmem_perf_model,
+@@ -47,5 +68,11 @@ namespace PrL1PrL2DramDirectoryMSI
+          // Run DRAM performance model. Pass in begin time, returns latency
+          boost::tuple<SubsecondTime, HitWhere::where_t> getDataFromDram(IntPtr address, core_id_t requester, Byte* data_buf, SubsecondTime now, ShmemPerf *perf);
+          boost::tuple<SubsecondTime, HitWhere::where_t> putDataToDram(IntPtr address, core_id_t requester, Byte* data_buf, SubsecondTime now);
++
++         //Tracing Methods
++         void writeTrace(core_id_t thread_id, IntPtr address, char op, uint32_t size, uint64_t timestamp);
++         void flushTraceBuffer();
++         void initializeTracing();
++         void finalizeTracing();
+    };
+ }
+diff --git a/config/gainestown.cfg b/config/gainestown.cfg
+index 750f56d..dca275f 100644
+--- a/config/gainestown.cfg
++++ b/config/gainestown.cfg
+@@ -7,6 +7,12 @@
+ [perf_model/core]
+ frequency = 2.66
+ 
++[perf_model/l2_cache]
++# Enable L2 cache tracing
++trace_enabled = true
++trace_file = cache_trace.out
++trace_buffer_size = 1024
++
+ [perf_model/l3_cache]
+ perfect = false
+ cache_block_size = 64
+@@ -19,6 +25,10 @@ tags_access_time = 10
+ perf_model_type = parallel
+ writethrough = 0
+ shared_cores = 4
++# Enable L3 cache tracing  
++trace_enabled = true
++trace_file = cache_trace.out
++trace_buffer_size = 1024
+ 
+ [perf_model/dram_directory]
+ # total_entries = number of entries per directory controller.
+@@ -38,6 +48,10 @@ per_controller_bandwidth = 7.6              # In GB/s, as measured by core_valid
+ chips_per_dimm = 8
+ dimms_per_controller = 4
+ 
++trace_enabled = true
++trace_file = dram_trace.out          # Optional, defaults to "dram_trace.out"
++trace_buffer_size = 1024
++
+ [network]
+ memory_model_1 = bus
+ memory_model_2 = bus

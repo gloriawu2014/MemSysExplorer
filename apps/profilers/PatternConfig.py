@@ -37,6 +37,8 @@ class PatternConfig:
                  total_reads_d=1, total_reads_i=1,
                  total_writes_d=1, total_writes_i=1,
                  read_size=1, write_size=1, workingset_size=-1,
+                 execution_time=None,
+                 peak_memory_kb=None,
                  metadata=None,
                  unit=None):  # <-- Allow override from child
 
@@ -91,6 +93,8 @@ class PatternConfig:
         self.total_reads_d = total_reads_d
         self.total_reads_i = total_reads_i
         self.workingset_size = workingset_size
+        self.execution_time = execution_time
+        self.peak_memory_kb = peak_memory_kb
         self.metadata = metadata
 
         # Default units
@@ -101,7 +105,9 @@ class PatternConfig:
             "total_writes": "count",
             "read_size": "bytes",
             "write_size": "bytes",
-            "workingset_size": "bytes"
+            "workingset_size": "bytes",
+            "execution_time": "seconds",
+            "peak_memory_kb": "KB"
         }
 
         # Override if provided

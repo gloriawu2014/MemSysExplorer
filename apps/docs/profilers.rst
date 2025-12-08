@@ -24,6 +24,16 @@ The following profiling tools are available and documented in detail:
    profilers/perf
    profilers/nvbit
 
+3.1.1 Common Profiler Library
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In addition to the profilers listed above, MemSysExplorer provides a **Common Profiler Library** containing shared utilities used across all profilers:
+
+.. toctree::
+   :maxdepth: 2
+
+   profilers/common
+
 3.2 Using the Profilers
 ------------------------
 

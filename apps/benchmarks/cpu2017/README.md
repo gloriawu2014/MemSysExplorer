@@ -32,7 +32,7 @@ The SPEC command lines were extracted using `specinvoke -n` and follow conventio
 .
 ├── commands/               # Contains .cmd files for each benchmark case
 ├── run_spec2017.sh         # Main automation script to prepare and simulate workloads
-├── main.py                 # Python profiler wrapper (in MemSys-Playground)
+├── main.py                 # Python profiler wrapper (in MemSysExplorer)
 ├── spec_runs/              # Output directories per benchmark execution
 ├── config/                 # Configuration files for simulator setup
 ```
@@ -41,7 +41,7 @@ The SPEC command lines were extracted using `specinvoke -n` and follow conventio
 
 * Auto-detect and wrap benchmark commands
 * Copies input/output data files and generates working directories
-* Integrates with MemSys-Playground `main.py` interface
+* Integrates with MemSysExplorer `main.py` interface
 * Supports batch profiling of SPEC workloads across Sniper
 
 ## Status

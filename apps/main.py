@@ -119,13 +119,41 @@ def main():
             parser.add_argument(f"--{arg}", required=True, nargs=argparse.REMAINDER)
         elif arg == "level":
             parser.add_argument(f"--{arg}", required=False, choices=["l1", "l2", "l3", "dram"])
+        elif arg == "config":
+            parser.add_argument(f"--{arg}", required=False, help="Path to profiler configuration file")
         else:
             parser.add_argument(f"--{arg}", required=True)
 
+    # Add optional profiler-specific arguments
+    if hasattr(profiler_class, 'optional_profiling_args'):
+        optional_args = profiler_class.optional_profiling_args()
+        for arg_def in optional_args:
+            arg_name = f"--{arg_def['name']}"
+            kwargs = {"help": arg_def.get("help", "")}
+
+            if "choices" in arg_def:
+                kwargs["choices"] = arg_def["choices"]
+            if "default" in arg_def:
+                kwargs["default"] = arg_def["default"]
+            if "type" in arg_def:
+                kwargs["type"] = arg_def["type"]
+            if "action" in arg_def:
+                kwargs["action"] = arg_def["action"]
+
+            parser.add_argument(arg_name, **kwargs)
+
+    # Add optional memory tracking flag (for DynamoRIO)
+    parser.add_argument("--enable-memory-stats", dest="enable_memory_stats", action="store_true",
+                       help="Enable memory usage tracking (DynamoRIO -stats -mem flags)")
+
     # Parse full arguments now that dynamic ones are registered
     args = parser.parse_args()
-    executable_path = args.executable[0] if isinstance(args.executable, list) else args.executable
-    safe_kernel_name = os.path.splitext(os.path.basename(executable_path))[0]
+
+    # Handle executable path (may not exist for extract_metrics only)
+    safe_kernel_name = "unknown"
+    if hasattr(args, 'executable') and args.executable:
+        executable_path = args.executable[0] if isinstance(args.executable, list) else args.executable
+        safe_kernel_name = os.path.splitext(os.path.basename(executable_path))[0]
 
     profiler = profiler_class(**vars(args))
     raw_metrics = None

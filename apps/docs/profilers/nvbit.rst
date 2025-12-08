@@ -9,7 +9,7 @@ This lightweight profiler is suitable for evaluating the memory access behavior 
 
    **MemSysExplorer GitHub Repository**
 
-   Refer to the codebase for the latest update: https://github.com/lpentecost/MemSys-Playground/tree/gpu-app/apps/nvbit
+   Refer to the codebase for the latest update: https://github.com/duca181/MemSysExplorer/tree/apps_dev/apps/profilers/nvbit
 
    To learn more about license terms and third-party attribution, refer to the :doc:`../licensing` page.
 

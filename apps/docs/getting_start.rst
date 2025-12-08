@@ -20,8 +20,8 @@ The overall profiling workflow is shown in Figure 1, which includes three catego
 
    **MemSysExplorer GitHub Repository**
 
-   Explore the codebase, raise issues, or contribute at: https://github.com/lpentecost/MemSys-Playground/tree/gpu-app/apps
-   
+   Explore the codebase, raise issues, or contribute at: https://github.com/duca181/MemSysExplorer/tree/apps_dev/apps
+
    To learn more about license terms and third-party attribution, refer to the :doc:`licensing` page.
 
 .. figure:: _static/Framework.png
@@ -37,19 +37,19 @@ The overall profiling workflow is shown in Figure 1, which includes three catego
 The following profilers are available in MemSysExplorer. Each has a dedicated directory in the GitHub repository. Refer to the linked folders for implementation details and advanced usage examples:
 
 - **DynamoRIO** — Dynamic binary instrumentation for CPU
-  `DynamoRIO Source Code <https://github.com/lpentecost/MemSys-Playground/tree/gpu-app/apps/profilers/dynamorio>`_
+  `DynamoRIO Source Code <https://github.com/duca181/MemSysExplorer/tree/apps_dev/apps/profilers/dynamorio>`_
 
 - **Perf** — Linux hardware performance counters
-  `Perf Source Code <https://github.com/lpentecost/MemSys-Playground/tree/gpu-app/apps/profilers/perf>`_
+  `Perf Source Code <https://github.com/duca181/MemSysExplorer/tree/apps_dev/apps/profilers/perf>`_
 
 - **Sniper** — Architectural simulator for multicore systems
-  `Sniper Source Code <https://github.com/lpentecost/MemSys-Playground/tree/gpu-app/apps/profilers/sniper>`_
+  `Sniper Source Code <https://github.com/duca181/MemSysExplorer/tree/apps_dev/apps/profilers/sniper>`_
 
 - **NVBit** — GPU binary instrumentation for CUDA applications
-  `NVbit Source Code <https://github.com/lpentecost/MemSys-Playground/tree/gpu-app/apps/profilers/nvbit>`_
+  `NVbit Source Code <https://github.com/duca181/MemSysExplorer/tree/apps_dev/apps/profilers/nvbit>`_
 
 - **Nsight Compute (NCU)** — NVIDIA tool for GPU memory statistics
-  `Nsight Compute Source Code <https://github.com/lpentecost/MemSys-Playground/tree/gpu-app/apps/profilers/ncu>`_
+  `Nsight Compute Source Code <https://github.com/duca181/MemSysExplorer/tree/apps_dev/apps/profilers/ncu>`_
 
 .. note::
 
@@ -82,8 +82,8 @@ To get started with MemSysExplorer, begin by cloning the repository from GitHub.
 
 .. code-block:: bash
 
-   git clone https://github.com/lpentecost/MemSys-Playground.git
-   cd MemSys-Playground
+   git clone -b apps_dev https://github.com/duca181/MemSysExplorer.git
+   cd MemSysExplorer/apps
 
 The repository includes a top-level `Makefile` that supports building and configuring five available profilers:
 

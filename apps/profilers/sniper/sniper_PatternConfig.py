@@ -2,6 +2,22 @@ import ast
 from profilers.PatternConfig import PatternConfig
 
 class SniperConfig(PatternConfig):
+    def __init__(self, **kwargs):
+        """
+        Initialize SniperConfig with additional size histogram fields.
+
+        Parameters
+        ----------
+        **kwargs : dict
+            Configuration parameters, including size histogram data
+        """
+        # Extract size histograms before calling parent init
+        self.read_size_histogram = kwargs.pop('read_size_histogram', {})
+        self.write_size_histogram = kwargs.pop('write_size_histogram', {})
+
+        # Call parent constructor
+        super().__init__(**kwargs)
+
     @classmethod
     def populating(cls, report_data, level="l2", metadata=None):
         """
@@ -40,26 +56,50 @@ class SniperConfig(PatternConfig):
         }
         prefixes = level_prefix_map.get(level.lower(), [])
 
-        # Determine core count from first valid list-valued metric
+        # Size histogram granularity depends on cache level:
+        # - L1: Fine-grained sizes (1, 2, 4, 8, 16, 32, 64 bytes) from actual instruction accesses
+        # - L2/L3/DRAM: Cache-line granularity (64 bytes) since these levels transfer full cache lines
+        use_fine_grained_histogram = level.lower() == "l1"
+
+        # Determine core count from core_time (most reliable indicator)
+        # or from first valid list-valued metric
         core_count = 0
         example_key = None
-        for k, v in report_data.items():
-            if any(k.startswith(p) for p in prefixes):
-                try:
-                    if isinstance(v, list):
-                        core_count = len(v)
+
+        # First try core_time as it's always present and reliable
+        core_time_val = report_data.get("core_time", [])
+        if isinstance(core_time_val, list) and len(core_time_val) > 0:
+            core_count = len(core_time_val)
+            example_key = "core_time"
+        else:
+            # Fall back to searching for list-valued metrics
+            for k, v in report_data.items():
+                if any(k.startswith(p) for p in prefixes):
+                    try:
+                        if isinstance(v, list):
+                            core_count = len(v)
+                            example_key = k
+                            break
+                        parsed = ast.literal_eval(v)
+                        if isinstance(parsed, list):
+                            core_count = len(parsed)
+                            example_key = k
+                            break
+                    except Exception:
+                        continue
+
+        # If still no core count found, check if we have scalar values (single core)
+        if core_count == 0:
+            # Check if there are any metrics with the level prefix that are scalars
+            for k, v in report_data.items():
+                if any(k.startswith(p) for p in prefixes):
+                    if isinstance(v, (int, float)) or (isinstance(v, str) and v not in ["N/A", ""]):
+                        core_count = 1
                         example_key = k
                         break
-                    parsed = ast.literal_eval(v)
-                    if isinstance(parsed, list):
-                        core_count = len(parsed)
-                        example_key = k
-                        break
-                except Exception:
-                    continue
 
         if core_count == 0 or example_key is None:
-            raise ValueError(f"No valid list-valued metrics found for level: {level}")
+            raise ValueError(f"No valid metrics found for level: {level}")
 
         # Extract per-core execution time in nanoseconds
         core_times_ns = report_data.get("core_time", [])
@@ -73,18 +113,25 @@ class SniperConfig(PatternConfig):
         elif len(core_times_ns) > core_count:
             core_times_ns = core_times_ns[:core_count]
 
-        # Safe helper for parsing list-valued metrics
+        # Safe helper for parsing metrics (handles both scalar and list values)
         def get_value(metric, default=0):
             raw = report_data.get(metric)
             if raw is None or raw == "N/A":
                 return [default] * core_count
             try:
+                # Handle already-list values
                 if isinstance(raw, list):
                     result = raw
+                # Handle scalar numeric values (single core)
+                elif isinstance(raw, (int, float)):
+                    result = [raw]
+                # Try parsing string as Python literal
                 else:
-                    result = ast.literal_eval(raw)
-                    if not isinstance(result, list):
-                        result = [result]
+                    parsed = ast.literal_eval(raw)
+                    if isinstance(parsed, list):
+                        result = parsed
+                    else:
+                        result = [parsed]
             except Exception:
                 return [default] * core_count
 
@@ -96,8 +143,6 @@ class SniperConfig(PatternConfig):
             return result
 
         pattern_configs = []
-        read_size = 8  # in bytes
-        write_size = 8  # in bytes
 
         for core_id in range(core_count):
             total_reads = 0
@@ -107,11 +152,61 @@ class SniperConfig(PatternConfig):
             workingset_size = 0
 
             for prefix in prefixes:
-                read_latency += get_value(f"{prefix}.read-latency")[core_id]
-                write_latency += get_value(f"{prefix}.write-latency")[core_id]
                 total_reads += get_value(f"{prefix}.loads")[core_id]
                 total_writes += get_value(f"{prefix}.stores")[core_id]
                 workingset_size += get_value(f"{prefix}.workingset-size")[core_id]
+
+            # Build size histograms based on cache level
+            read_size_histogram = {}
+            write_size_histogram = {}
+
+            if use_fine_grained_histogram:
+                # L1 level: Use fine-grained histogram from L1-D (actual instruction access sizes)
+                size_prefix = "L1-D"
+                read_size_histogram = {
+                    "1": get_value(f"{size_prefix}.load-size-1")[core_id],
+                    "2": get_value(f"{size_prefix}.load-size-2")[core_id],
+                    "4": get_value(f"{size_prefix}.load-size-4")[core_id],
+                    "8": get_value(f"{size_prefix}.load-size-8")[core_id],
+                    "16": get_value(f"{size_prefix}.load-size-16")[core_id],
+                    "32": get_value(f"{size_prefix}.load-size-32")[core_id],
+                    "64": get_value(f"{size_prefix}.load-size-64")[core_id],
+                    "other": get_value(f"{size_prefix}.load-size-other")[core_id]
+                }
+                write_size_histogram = {
+                    "1": get_value(f"{size_prefix}.store-size-1")[core_id],
+                    "2": get_value(f"{size_prefix}.store-size-2")[core_id],
+                    "4": get_value(f"{size_prefix}.store-size-4")[core_id],
+                    "8": get_value(f"{size_prefix}.store-size-8")[core_id],
+                    "16": get_value(f"{size_prefix}.store-size-16")[core_id],
+                    "32": get_value(f"{size_prefix}.store-size-32")[core_id],
+                    "64": get_value(f"{size_prefix}.store-size-64")[core_id],
+                    "other": get_value(f"{size_prefix}.store-size-other")[core_id]
+                }
+            else:
+                # L2/L3/DRAM: All accesses are cache-line granularity (64 bytes)
+                # Every read/write at these levels transfers a full cache line
+                read_size_histogram = {
+                    "1": 0, "2": 0, "4": 0, "8": 0,
+                    "16": 0, "32": 0, "64": total_reads, "other": 0
+                }
+                write_size_histogram = {
+                    "1": 0, "2": 0, "4": 0, "8": 0,
+                    "16": 0, "32": 0, "64": total_writes, "other": 0
+                }
+
+            # Calculate dominant size (most common) for backward compatibility
+            if sum(read_size_histogram.values()) > 0:
+                dominant_read_size = max(read_size_histogram.items(), key=lambda x: x[1])[0]
+            else:
+                dominant_read_size = "8"  # Default fallback
+            if sum(write_size_histogram.values()) > 0:
+                dominant_write_size = max(write_size_histogram.items(), key=lambda x: x[1])[0]
+            else:
+                dominant_write_size = "8"  # Default fallback
+
+            read_size = int(dominant_read_size) if dominant_read_size != "other" else 8
+            write_size = int(dominant_write_size) if dominant_write_size != "other" else 8
 
             # Convert per-core time from ns to seconds
             core_time_sec = core_times_ns[core_id] / 1e9 if core_id < len(core_times_ns) else 0.0
@@ -138,6 +233,8 @@ class SniperConfig(PatternConfig):
                 total_writes=total_writes,
                 read_size=read_size,
                 write_size=write_size,
+                read_size_histogram=read_size_histogram,
+                write_size_histogram=write_size_histogram,
                 workingset_size=workingset_size,
                 metadata=metadata,
                 unit=unit_overrides  # Set unit override here

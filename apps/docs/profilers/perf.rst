@@ -15,7 +15,7 @@ When using the `both` action, profiling and metric extraction are performed sequ
 
    **MemSysExplorer GitHub Repository**
 
-   Refer to the codebase for the latest update: https://github.com/lpentecost/MemSys-Playground/tree/gpu-app/apps/perf
+   Refer to the codebase for the latest update: https://github.com/duca181/MemSysExplorer/tree/apps_dev/apps/profilers/perf
 
    To learn more about license terms and third-party attribution, refer to the :doc:`../licensing` page.
 

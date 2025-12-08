@@ -1,0 +1,23 @@
+{
+  "exp_name": "DynamoRIOProfilers",
+  "benchmark_name": " ",
+  "read_freq": null,
+  "total_reads": 147746,
+  "write_freq": null,
+  "total_writes": 62740,
+  "read_size": 32,
+  "write_size": 32,
+  "total_writes_i": 1,
+  "total_writes_d": 1,
+  "total_reads_d": 1,
+  "total_reads_i": 1,
+  "workingset_size": 4812,
+  "metadata": null,
+  "unit": {
+    "read_freq": "ratio",
+    "write_freq": "ratio",
+    "total_reads": "count",
+    "total_write": "count",
+    "workingset_size": "count"
+  }
+}

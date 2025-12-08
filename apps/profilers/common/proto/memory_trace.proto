@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package memory_trace;
+
+option cc_enable_arenas = true;
+
+// Collection of memory trace events
+message MemoryTrace {
+  repeated MemoryEvent events = 1;
+}
+
+// Single memory operation event
+message MemoryEvent {
+  uint64 timestamp = 1;    // Timestamp of the memory operation
+  uint32 thread_id = 2;    // Thread ID that performed the operation
+  uint64 address = 3;      // Memory address accessed
+  MemOp mem_op = 4;        // Read or Write operation
+  HitMiss hit_miss = 5;    // Cache hit or miss
+}
+
+// Memory operation type
+enum MemOp {
+  READ = 0;
+  WRITE = 1;
+}
+
+// Cache hit/miss status
+enum HitMiss {
+  HIT = 0;
+  MISS = 1;
+}

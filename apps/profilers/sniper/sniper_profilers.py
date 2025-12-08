@@ -20,6 +20,19 @@ class SniperProfilers(FrontendInterface):
             Cache level to extract metrics from (default: 'l3').
         executable : list
             List of strings for the target executable and its arguments.
+
+        ROI/Instruction Control (optional):
+        -----------------------------------
+        roi_mode : str
+            ROI control mode: 'none' (default) or 'icount' (instruction count based).
+        fastforward : int
+            Number of instructions to fast-forward (skip) before warmup.
+        warmup : int
+            Number of instructions for cache warmup (no timing stats).
+        detailed : int
+            Number of instructions to simulate in detailed mode.
+        no_cache_warming : bool
+            If True, start with cold caches (no warming during fast-forward).
         """
         super().__init__(**kwargs)
         self.config_path = self.config.get("config", "")  # Config path
@@ -29,9 +42,20 @@ class SniperProfilers(FrontendInterface):
         self.sniper_path = os.path.join(self.script_dir, "snipersim", "run-sniper")
         self.metrics = None
 
+        # ROI/Instruction control options
+        self.roi_mode = self.config.get("roi_mode", "none")
+        self.fastforward = self.config.get("fastforward", 0)
+        self.warmup = self.config.get("warmup", 0)
+        self.detailed = self.config.get("detailed", 0)
+        self.no_cache_warming = self.config.get("no_cache_warming", False)
+
     def construct_command(self):
         """
         Construct the Sniper simulation command based on provided executable and config.
+
+        Supports ROI modes:
+        - 'none': Run full simulation without ROI control
+        - 'icount': Use roi-icount script for instruction-count based ROI control
 
         Returns
         -------
@@ -42,6 +66,22 @@ class SniperProfilers(FrontendInterface):
 
         if self.config_path:
             command += ["-c", self.config_path]
+
+        # Handle ROI mode
+        if self.roi_mode == "icount":
+            # Validate that detailed is set (required for roi-icount)
+            if self.detailed <= 0:
+                raise ValueError("roi_mode='icount' requires --detailed to be set (> 0)")
+
+            # Add roi-script flags
+            command += ["--roi-script"]
+
+            if self.no_cache_warming:
+                command += ["--no-cache-warming"]
+
+            # Build roi-icount script argument: -s roi-icount:fastforward:warmup:detailed
+            script_args = f"roi-icount:{self.fastforward}:{self.warmup}:{self.detailed}"
+            command += ["-s", script_args]
 
         command.append("--")
 
@@ -196,4 +236,46 @@ class SniperProfilers(FrontendInterface):
             args.append("results_dir")  # default handled in code
             args.append("level")
         return args
+
+    @classmethod
+    def optional_profiling_args(cls):
+        """
+        Define optional arguments for Sniper profiling, including ROI control.
+
+        Returns
+        -------
+        list of dict
+            Optional argument definitions for argparse.
+        """
+        return [
+            {
+                "name": "roi_mode",
+                "choices": ["none", "icount"],
+                "default": "none",
+                "help": "ROI control mode: 'none' (full simulation) or 'icount' (instruction count based)"
+            },
+            {
+                "name": "fastforward",
+                "type": int,
+                "default": 0,
+                "help": "Instructions to fast-forward (skip) before warmup (roi_mode=icount)"
+            },
+            {
+                "name": "warmup",
+                "type": int,
+                "default": 0,
+                "help": "Instructions for cache warmup without timing stats (roi_mode=icount)"
+            },
+            {
+                "name": "detailed",
+                "type": int,
+                "default": 0,
+                "help": "Instructions to simulate in detailed mode (roi_mode=icount, required if icount mode)"
+            },
+            {
+                "name": "no_cache_warming",
+                "action": "store_true",
+                "help": "Start with cold caches (no cache warming during fast-forward)"
+            },
+        ]
 

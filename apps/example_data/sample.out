@@ -1,0 +1,1073 @@
+{
+  "metadata": {
+    "profiler": "dynamorio",
+    "pid": 106012,
+    "start_timestamp": 0,
+    "command": "ls",
+    "sample_window_refs": 2000,
+    "cache_line_size": 64,
+    "num_threads": 1
+  },
+  "samples": [
+    {
+      "window_number": 0,
+      "thread_id": 106012,
+      "read_count": 1817,
+      "write_count": 183,
+      "total_refs": 2000,
+      "wss_exact": 111,
+      "wss_approx": 106.31135476646118,
+      "timestamp": 13405630806889529
+    },
+    {
+      "window_number": 1,
+      "thread_id": 106012,
+      "read_count": 2000,
+      "write_count": 0,
+      "total_refs": 2000,
+      "wss_exact": 56,
+      "wss_approx": 58.126707362648595,
+      "timestamp": 13405630806889966
+    },
+    {
+      "window_number": 2,
+      "thread_id": 106012,
+      "read_count": 2000,
+      "write_count": 0,
+      "total_refs": 2000,
+      "wss_exact": 57,
+      "wss_approx": 59.38469515207044,
+      "timestamp": 13405630806890415
+    },
+    {
+      "window_number": 3,
+      "thread_id": 106012,
+      "read_count": 1157,
+      "write_count": 843,
+      "total_refs": 2000,
+      "wss_exact": 213,
+      "wss_approx": 235.5723855859946,
+      "timestamp": 13405630806890889
+    },
+    {
+      "window_number": 4,
+      "thread_id": 106012,
+      "read_count": 1332,
+      "write_count": 668,
+      "total_refs": 2000,
+      "wss_exact": 79,
+      "wss_approx": 83.15433456671686,
+      "timestamp": 13405630806916286
+    },
+    {
+      "window_number": 5,
+      "thread_id": 106012,
+      "read_count": 1130,
+      "write_count": 870,
+      "total_refs": 2000,
+      "wss_exact": 232,
+      "wss_approx": 230.60135560657662,
+      "timestamp": 13405630806916830
+    },
+    {
+      "window_number": 6,
+      "thread_id": 106012,
+      "read_count": 1242,
+      "write_count": 758,
+      "total_refs": 2000,
+      "wss_exact": 239,
+      "wss_approx": 261.98755006221364,
+      "timestamp": 13405630806917348
+    },
+    {
+      "window_number": 7,
+      "thread_id": 106012,
+      "read_count": 1335,
+      "write_count": 665,
+      "total_refs": 2000,
+      "wss_exact": 186,
+      "wss_approx": 179.45353165336863,
+      "timestamp": 13405630806917827
+    },
+    {
+      "window_number": 8,
+      "thread_id": 106012,
+      "read_count": 1509,
+      "write_count": 491,
+      "total_refs": 2000,
+      "wss_exact": 171,
+      "wss_approx": 167.63604896199902,
+      "timestamp": 13405630806929028
+    },
+    {
+      "window_number": 9,
+      "thread_id": 106012,
+      "read_count": 1712,
+      "write_count": 288,
+      "total_refs": 2000,
+      "wss_exact": 117,
+      "wss_approx": 118.72590835074546,
+      "timestamp": 13405630806929481
+    },
+    {
+      "window_number": 10,
+      "thread_id": 106012,
+      "read_count": 1600,
+      "write_count": 400,
+      "total_refs": 2000,
+      "wss_exact": 142,
+      "wss_approx": 142.0146835714115,
+      "timestamp": 13405630806929949
+    },
+    {
+      "window_number": 11,
+      "thread_id": 106012,
+      "read_count": 1010,
+      "write_count": 990,
+      "total_refs": 2000,
+      "wss_exact": 690,
+      "wss_approx": 742.8190669051851,
+      "timestamp": 13405630806930534
+    },
+    {
+      "window_number": 12,
+      "thread_id": 106012,
+      "read_count": 1188,
+      "write_count": 812,
+      "total_refs": 2000,
+      "wss_exact": 804,
+      "wss_approx": 790.9753457443168,
+      "timestamp": 13405630806934572
+    },
+    {
+      "window_number": 13,
+      "thread_id": 106012,
+      "read_count": 1429,
+      "write_count": 571,
+      "total_refs": 2000,
+      "wss_exact": 133,
+      "wss_approx": 128.44859585544086,
+      "timestamp": 13405630806935076
+    },
+    {
+      "window_number": 14,
+      "thread_id": 106012,
+      "read_count": 1404,
+      "write_count": 596,
+      "total_refs": 2000,
+      "wss_exact": 105,
+      "wss_approx": 110.89655196749294,
+      "timestamp": 13405630806935541
+    },
+    {
+      "window_number": 15,
+      "thread_id": 106012,
+      "read_count": 1451,
+      "write_count": 549,
+      "total_refs": 2000,
+      "wss_exact": 128,
+      "wss_approx": 130.10555956887896,
+      "timestamp": 13405630806936010
+    },
+    {
+      "window_number": 16,
+      "thread_id": 106012,
+      "read_count": 1452,
+      "write_count": 548,
+      "total_refs": 2000,
+      "wss_exact": 120,
+      "wss_approx": 123.54109733186449,
+      "timestamp": 13405630806941315
+    },
+    {
+      "window_number": 17,
+      "thread_id": 106012,
+      "read_count": 1418,
+      "write_count": 582,
+      "total_refs": 2000,
+      "wss_exact": 106,
+      "wss_approx": 104.80102590190099,
+      "timestamp": 13405630806941797
+    },
+    {
+      "window_number": 18,
+      "thread_id": 106012,
+      "read_count": 1444,
+      "write_count": 556,
+      "total_refs": 2000,
+      "wss_exact": 109,
+      "wss_approx": 95.92152305700114,
+      "timestamp": 13405630806942270
+    },
+    {
+      "window_number": 19,
+      "thread_id": 106012,
+      "read_count": 1412,
+      "write_count": 588,
+      "total_refs": 2000,
+      "wss_exact": 106,
+      "wss_approx": 106.31135476646118,
+      "timestamp": 13405630806942754
+    },
+    {
+      "window_number": 20,
+      "thread_id": 106012,
+      "read_count": 1446,
+      "write_count": 554,
+      "total_refs": 2000,
+      "wss_exact": 124,
+      "wss_approx": 126.80228793088651,
+      "timestamp": 13405630806949300
+    },
+    {
+      "window_number": 21,
+      "thread_id": 106012,
+      "read_count": 1436,
+      "write_count": 564,
+      "total_refs": 2000,
+      "wss_exact": 128,
+      "wss_approx": 113.99962026377321,
+      "timestamp": 13405630806949780
+    },
+    {
+      "window_number": 22,
+      "thread_id": 106012,
+      "read_count": 1489,
+      "write_count": 511,
+      "total_refs": 2000,
+      "wss_exact": 115,
+      "wss_approx": 120.32092908690832,
+      "timestamp": 13405630806950274
+    },
+    {
+      "window_number": 23,
+      "thread_id": 106012,
+      "read_count": 1480,
+      "write_count": 520,
+      "total_refs": 2000,
+      "wss_exact": 116,
+      "wss_approx": 125.16649961760115,
+      "timestamp": 13405630806950748
+    },
+    {
+      "window_number": 24,
+      "thread_id": 106012,
+      "read_count": 1541,
+      "write_count": 459,
+      "total_refs": 2000,
+      "wss_exact": 155,
+      "wss_approx": 158.1884823865236,
+      "timestamp": 13405630806954327
+    },
+    {
+      "window_number": 25,
+      "thread_id": 106012,
+      "read_count": 1437,
+      "write_count": 563,
+      "total_refs": 2000,
+      "wss_exact": 164,
+      "wss_approx": 160.050308774768,
+      "timestamp": 13405630806954812
+    },
+    {
+      "window_number": 26,
+      "thread_id": 106012,
+      "read_count": 1454,
+      "write_count": 546,
+      "total_refs": 2000,
+      "wss_exact": 141,
+      "wss_approx": 149.07720044023174,
+      "timestamp": 13405630806955297
+    },
+    {
+      "window_number": 27,
+      "thread_id": 106012,
+      "read_count": 1453,
+      "write_count": 547,
+      "total_refs": 2000,
+      "wss_exact": 143,
+      "wss_approx": 140.27908370315455,
+      "timestamp": 13405630806955790
+    },
+    {
+      "window_number": 28,
+      "thread_id": 106012,
+      "read_count": 1439,
+      "write_count": 561,
+      "total_refs": 2000,
+      "wss_exact": 127,
+      "wss_approx": 117.14076396727765,
+      "timestamp": 13405630806956617
+    },
+    {
+      "window_number": 29,
+      "thread_id": 106012,
+      "read_count": 1429,
+      "write_count": 571,
+      "total_refs": 2000,
+      "wss_exact": 126,
+      "wss_approx": 121.92595001838873,
+      "timestamp": 13405630806957090
+    },
+    {
+      "window_number": 30,
+      "thread_id": 106012,
+      "read_count": 1432,
+      "write_count": 568,
+      "total_refs": 2000,
+      "wss_exact": 138,
+      "wss_approx": 135.14178756214736,
+      "timestamp": 13405630806957574
+    },
+    {
+      "window_number": 31,
+      "thread_id": 106012,
+      "read_count": 1407,
+      "write_count": 593,
+      "total_refs": 2000,
+      "wss_exact": 130,
+      "wss_approx": 138.55517146473045,
+      "timestamp": 13405630806958068
+    },
+    {
+      "window_number": 32,
+      "thread_id": 106012,
+      "read_count": 1431,
+      "write_count": 569,
+      "total_refs": 2000,
+      "wss_exact": 133,
+      "wss_approx": 145.52158772710095,
+      "timestamp": 13405630806960021
+    },
+    {
+      "window_number": 33,
+      "thread_id": 106012,
+      "read_count": 1428,
+      "write_count": 572,
+      "total_refs": 2000,
+      "wss_exact": 130,
+      "wss_approx": 138.55517146473045,
+      "timestamp": 13405630806960503
+    },
+    {
+      "window_number": 34,
+      "thread_id": 106012,
+      "read_count": 1418,
+      "write_count": 582,
+      "total_refs": 2000,
+      "wss_exact": 125,
+      "wss_approx": 120.32092908690832,
+      "timestamp": 13405630806961011
+    },
+    {
+      "window_number": 35,
+      "thread_id": 106012,
+      "read_count": 1449,
+      "write_count": 551,
+      "total_refs": 2000,
+      "wss_exact": 146,
+      "wss_approx": 140.27908370315455,
+      "timestamp": 13405630806961500
+    },
+    {
+      "window_number": 36,
+      "thread_id": 106012,
+      "read_count": 1428,
+      "write_count": 572,
+      "total_refs": 2000,
+      "wss_exact": 136,
+      "wss_approx": 145.52158772710095,
+      "timestamp": 13405630806962062
+    },
+    {
+      "window_number": 37,
+      "thread_id": 106012,
+      "read_count": 1432,
+      "write_count": 568,
+      "total_refs": 2000,
+      "wss_exact": 148,
+      "wss_approx": 161.92577503833868,
+      "timestamp": 13405630806962627
+    },
+    {
+      "window_number": 38,
+      "thread_id": 106012,
+      "read_count": 1436,
+      "write_count": 564,
+      "total_refs": 2000,
+      "wss_exact": 138,
+      "wss_approx": 142.0146835714115,
+      "timestamp": 13405630806963102
+    },
+    {
+      "window_number": 39,
+      "thread_id": 106012,
+      "read_count": 1431,
+      "write_count": 569,
+      "total_refs": 2000,
+      "wss_exact": 139,
+      "wss_approx": 145.52158772710095,
+      "timestamp": 13405630806963600
+    },
+    {
+      "window_number": 40,
+      "thread_id": 106012,
+      "read_count": 1412,
+      "write_count": 588,
+      "total_refs": 2000,
+      "wss_exact": 123,
+      "wss_approx": 125.16649961760115,
+      "timestamp": 13405630806964289
+    },
+    {
+      "window_number": 41,
+      "thread_id": 106012,
+      "read_count": 1436,
+      "write_count": 564,
+      "total_refs": 2000,
+      "wss_exact": 141,
+      "wss_approx": 140.27908370315455,
+      "timestamp": 13405630806964774
+    },
+    {
+      "window_number": 42,
+      "thread_id": 106012,
+      "read_count": 1441,
+      "write_count": 559,
+      "total_refs": 2000,
+      "wss_exact": 136,
+      "wss_approx": 143.76213062943384,
+      "timestamp": 13405630806965257
+    },
+    {
+      "window_number": 43,
+      "thread_id": 106012,
+      "read_count": 1417,
+      "write_count": 583,
+      "total_refs": 2000,
+      "wss_exact": 138,
+      "wss_approx": 140.27908370315455,
+      "timestamp": 13405630806965731
+    },
+    {
+      "window_number": 44,
+      "thread_id": 106012,
+      "read_count": 1439,
+      "write_count": 561,
+      "total_refs": 2000,
+      "wss_exact": 123,
+      "wss_approx": 121.92595001838873,
+      "timestamp": 13405630806966198
+    },
+    {
+      "window_number": 45,
+      "thread_id": 106012,
+      "read_count": 1466,
+      "write_count": 534,
+      "total_refs": 2000,
+      "wss_exact": 223,
+      "wss_approx": 216.24245214390942,
+      "timestamp": 13405630806967394
+    },
+    {
+      "window_number": 46,
+      "thread_id": 106012,
+      "read_count": 1415,
+      "write_count": 585,
+      "total_refs": 2000,
+      "wss_exact": 163,
+      "wss_approx": 160.050308774768,
+      "timestamp": 13405630806967863
+    },
+    {
+      "window_number": 47,
+      "thread_id": 106012,
+      "read_count": 1458,
+      "write_count": 542,
+      "total_refs": 2000,
+      "wss_exact": 129,
+      "wss_approx": 136.84279049812653,
+      "timestamp": 13405630806968344
+    },
+    {
+      "window_number": 48,
+      "thread_id": 106012,
+      "read_count": 1436,
+      "write_count": 564,
+      "total_refs": 2000,
+      "wss_exact": 132,
+      "wss_approx": 133.45201245012123,
+      "timestamp": 13405630806968822
+    },
+    {
+      "window_number": 49,
+      "thread_id": 106012,
+      "read_count": 1439,
+      "write_count": 561,
+      "total_refs": 2000,
+      "wss_exact": 127,
+      "wss_approx": 123.54109733186449,
+      "timestamp": 13405630806969360
+    },
+    {
+      "window_number": 50,
+      "thread_id": 106012,
+      "read_count": 1411,
+      "write_count": 589,
+      "total_refs": 2000,
+      "wss_exact": 122,
+      "wss_approx": 118.72590835074546,
+      "timestamp": 13405630806969842
+    },
+    {
+      "window_number": 51,
+      "thread_id": 106012,
+      "read_count": 1434,
+      "write_count": 566,
+      "total_refs": 2000,
+      "wss_exact": 132,
+      "wss_approx": 136.84279049812653,
+      "timestamp": 13405630806970325
+    },
+    {
+      "window_number": 52,
+      "thread_id": 106012,
+      "read_count": 1445,
+      "write_count": 555,
+      "total_refs": 2000,
+      "wss_exact": 135,
+      "wss_approx": 131.7733179103045,
+      "timestamp": 13405630806970811
+    },
+    {
+      "window_number": 53,
+      "thread_id": 106012,
+      "read_count": 1412,
+      "write_count": 588,
+      "total_refs": 2000,
+      "wss_exact": 123,
+      "wss_approx": 130.10555956887896,
+      "timestamp": 13405630806971450
+    },
+    {
+      "window_number": 54,
+      "thread_id": 106012,
+      "read_count": 1431,
+      "write_count": 569,
+      "total_refs": 2000,
+      "wss_exact": 135,
+      "wss_approx": 136.84279049812653,
+      "timestamp": 13405630806971947
+    },
+    {
+      "window_number": 55,
+      "thread_id": 106012,
+      "read_count": 1439,
+      "write_count": 561,
+      "total_refs": 2000,
+      "wss_exact": 133,
+      "wss_approx": 136.84279049812653,
+      "timestamp": 13405630806972415
+    },
+    {
+      "window_number": 56,
+      "thread_id": 106012,
+      "read_count": 1435,
+      "write_count": 565,
+      "total_refs": 2000,
+      "wss_exact": 133,
+      "wss_approx": 140.27908370315455,
+      "timestamp": 13405630806972885
+    },
+    {
+      "window_number": 57,
+      "thread_id": 106012,
+      "read_count": 1412,
+      "write_count": 588,
+      "total_refs": 2000,
+      "wss_exact": 127,
+      "wss_approx": 123.54109733186449,
+      "timestamp": 13405630806973409
+    },
+    {
+      "window_number": 58,
+      "thread_id": 106012,
+      "read_count": 1436,
+      "write_count": 564,
+      "total_refs": 2000,
+      "wss_exact": 134,
+      "wss_approx": 125.16649961760115,
+      "timestamp": 13405630806973902
+    },
+    {
+      "window_number": 59,
+      "thread_id": 106012,
+      "read_count": 1435,
+      "write_count": 565,
+      "total_refs": 2000,
+      "wss_exact": 130,
+      "wss_approx": 135.14178756214736,
+      "timestamp": 13405630806974378
+    },
+    {
+      "window_number": 60,
+      "thread_id": 106012,
+      "read_count": 1416,
+      "write_count": 584,
+      "total_refs": 2000,
+      "wss_exact": 121,
+      "wss_approx": 126.80228793088651,
+      "timestamp": 13405630806974851
+    },
+    {
+      "window_number": 61,
+      "thread_id": 106012,
+      "read_count": 1428,
+      "write_count": 572,
+      "total_refs": 2000,
+      "wss_exact": 129,
+      "wss_approx": 133.45201245012123,
+      "timestamp": 13405630806995004
+    },
+    {
+      "window_number": 62,
+      "thread_id": 106012,
+      "read_count": 1407,
+      "write_count": 593,
+      "total_refs": 2000,
+      "wss_exact": 224,
+      "wss_approx": 216.24245214390942,
+      "timestamp": 13405630806995501
+    },
+    {
+      "window_number": 63,
+      "thread_id": 106012,
+      "read_count": 1293,
+      "write_count": 707,
+      "total_refs": 2000,
+      "wss_exact": 282,
+      "wss_approx": 253.77294153702954,
+      "timestamp": 13405630806996027
+    },
+    {
+      "window_number": 64,
+      "thread_id": 106012,
+      "read_count": 1318,
+      "write_count": 682,
+      "total_refs": 2000,
+      "wss_exact": 68,
+      "wss_approx": 69.67753879444881,
+      "timestamp": 13405630806996484
+    },
+    {
+      "window_number": 65,
+      "thread_id": 106012,
+      "read_count": 1389,
+      "write_count": 611,
+      "total_refs": 2000,
+      "wss_exact": 128,
+      "wss_approx": 135.14178756214736,
+      "timestamp": 13405630807014579
+    },
+    {
+      "window_number": 66,
+      "thread_id": 106012,
+      "read_count": 1303,
+      "write_count": 697,
+      "total_refs": 2000,
+      "wss_exact": 144,
+      "wss_approx": 133.45201245012123,
+      "timestamp": 13405630807015066
+    },
+    {
+      "window_number": 67,
+      "thread_id": 106012,
+      "read_count": 1251,
+      "write_count": 749,
+      "total_refs": 2000,
+      "wss_exact": 49,
+      "wss_approx": 49.48974361689499,
+      "timestamp": 13405630807015516
+    },
+    {
+      "window_number": 68,
+      "thread_id": 106012,
+      "read_count": 1409,
+      "write_count": 591,
+      "total_refs": 2000,
+      "wss_exact": 45,
+      "wss_approx": 47.07463136515517,
+      "timestamp": 13405630807015963
+    },
+    {
+      "window_number": 69,
+      "thread_id": 106012,
+      "read_count": 1438,
+      "write_count": 562,
+      "total_refs": 2000,
+      "wss_exact": 31,
+      "wss_approx": 31.908465973062807,
+      "timestamp": 13405630807021179
+    },
+    {
+      "window_number": 70,
+      "thread_id": 106012,
+      "read_count": 1413,
+      "write_count": 587,
+      "total_refs": 2000,
+      "wss_exact": 33,
+      "wss_approx": 34.18403651187778,
+      "timestamp": 13405630807021625
+    },
+    {
+      "window_number": 71,
+      "thread_id": 106012,
+      "read_count": 1421,
+      "write_count": 579,
+      "total_refs": 2000,
+      "wss_exact": 92,
+      "wss_approx": 94.47109424786774,
+      "timestamp": 13405630807022071
+    },
+    {
+      "window_number": 72,
+      "thread_id": 106012,
+      "read_count": 1373,
+      "write_count": 627,
+      "total_refs": 2000,
+      "wss_exact": 111,
+      "wss_approx": 112.44338446821936,
+      "timestamp": 13405630807022528
+    },
+    {
+      "window_number": 73,
+      "thread_id": 106012,
+      "read_count": 1497,
+      "write_count": 503,
+      "total_refs": 2000,
+      "wss_exact": 97,
+      "wss_approx": 95.92152305700114,
+      "timestamp": 13405630807034798
+    },
+    {
+      "window_number": 74,
+      "thread_id": 106012,
+      "read_count": 1580,
+      "write_count": 420,
+      "total_refs": 2000,
+      "wss_exact": 166,
+      "wss_approx": 156.34009890531092,
+      "timestamp": 13405630807035286
+    },
+    {
+      "window_number": 75,
+      "thread_id": 106012,
+      "read_count": 1255,
+      "write_count": 745,
+      "total_refs": 2000,
+      "wss_exact": 92,
+      "wss_approx": 85.93697065936423,
+      "timestamp": 13405630807035741
+    },
+    {
+      "window_number": 76,
+      "thread_id": 106012,
+      "read_count": 1423,
+      "write_count": 577,
+      "total_refs": 2000,
+      "wss_exact": 145,
+      "wss_approx": 156.34009890531092,
+      "timestamp": 13405630807036215
+    },
+    {
+      "window_number": 77,
+      "thread_id": 106012,
+      "read_count": 1321,
+      "write_count": 679,
+      "total_refs": 2000,
+      "wss_exact": 126,
+      "wss_approx": 128.44859585544086,
+      "timestamp": 13405630807039843
+    },
+    {
+      "window_number": 78,
+      "thread_id": 106012,
+      "read_count": 1324,
+      "write_count": 676,
+      "total_refs": 2000,
+      "wss_exact": 131,
+      "wss_approx": 136.84279049812653,
+      "timestamp": 13405630807040311
+    },
+    {
+      "window_number": 79,
+      "thread_id": 106012,
+      "read_count": 1391,
+      "write_count": 609,
+      "total_refs": 2000,
+      "wss_exact": 152,
+      "wss_approx": 161.92577503833868,
+      "timestamp": 13405630807040809
+    },
+    {
+      "window_number": 80,
+      "thread_id": 106012,
+      "read_count": 1247,
+      "write_count": 753,
+      "total_refs": 2000,
+      "wss_exact": 81,
+      "wss_approx": 85.93697065936423,
+      "timestamp": 13405630807041269
+    },
+    {
+      "window_number": 81,
+      "thread_id": 106012,
+      "read_count": 1399,
+      "write_count": 601,
+      "total_refs": 2000,
+      "wss_exact": 150,
+      "wss_approx": 160.050308774768,
+      "timestamp": 13405630807043881
+    },
+    {
+      "window_number": 82,
+      "thread_id": 106012,
+      "read_count": 1315,
+      "write_count": 685,
+      "total_refs": 2000,
+      "wss_exact": 112,
+      "wss_approx": 112.44338446821936,
+      "timestamp": 13405630807044369
+    },
+    {
+      "window_number": 83,
+      "thread_id": 106012,
+      "read_count": 1346,
+      "write_count": 654,
+      "total_refs": 2000,
+      "wss_exact": 131,
+      "wss_approx": 140.27908370315455,
+      "timestamp": 13405630807044831
+    },
+    {
+      "window_number": 84,
+      "thread_id": 106012,
+      "read_count": 1387,
+      "write_count": 613,
+      "total_refs": 2000,
+      "wss_exact": 140,
+      "wss_approx": 150.87369904084525,
+      "timestamp": 13405630807045302
+    },
+    {
+      "window_number": 85,
+      "thread_id": 106012,
+      "read_count": 1288,
+      "write_count": 712,
+      "total_refs": 2000,
+      "wss_exact": 106,
+      "wss_approx": 107.83064705953369,
+      "timestamp": 13405630807045785
+    },
+    {
+      "window_number": 86,
+      "thread_id": 106012,
+      "read_count": 1260,
+      "write_count": 740,
+      "total_refs": 2000,
+      "wss_exact": 69,
+      "wss_approx": 68.36807302375556,
+      "timestamp": 13405630807049926
+    },
+    {
+      "window_number": 87,
+      "thread_id": 106012,
+      "read_count": 1278,
+      "write_count": 722,
+      "total_refs": 2000,
+      "wss_exact": 62,
+      "wss_approx": 59.38469515207044,
+      "timestamp": 13405630807050381
+    },
+    {
+      "window_number": 88,
+      "thread_id": 106012,
+      "read_count": 1402,
+      "write_count": 598,
+      "total_refs": 2000,
+      "wss_exact": 162,
+      "wss_approx": 169.56813360465705,
+      "timestamp": 13405630807050861
+    },
+    {
+      "window_number": 89,
+      "thread_id": 106012,
+      "read_count": 1300,
+      "write_count": 700,
+      "total_refs": 2000,
+      "wss_exact": 88,
+      "wss_approx": 88.75018578271658,
+      "timestamp": 13405630807051335
+    },
+    {
+      "window_number": 90,
+      "thread_id": 106012,
+      "read_count": 1403,
+      "write_count": 597,
+      "total_refs": 2000,
+      "wss_exact": 155,
+      "wss_approx": 167.63604896199902,
+      "timestamp": 13405630807054482
+    },
+    {
+      "window_number": 91,
+      "thread_id": 106012,
+      "read_count": 1345,
+      "write_count": 655,
+      "total_refs": 2000,
+      "wss_exact": 123,
+      "wss_approx": 125.16649961760115,
+      "timestamp": 13405630807054947
+    },
+    {
+      "window_number": 92,
+      "thread_id": 106012,
+      "read_count": 1357,
+      "write_count": 643,
+      "total_refs": 2000,
+      "wss_exact": 137,
+      "wss_approx": 145.52158772710095,
+      "timestamp": 13405630807055410
+    },
+    {
+      "window_number": 93,
+      "thread_id": 106012,
+      "read_count": 1418,
+      "write_count": 582,
+      "total_refs": 2000,
+      "wss_exact": 168,
+      "wss_approx": 167.63604896199902,
+      "timestamp": 13405630807055890
+    },
+    {
+      "window_number": 94,
+      "thread_id": 106012,
+      "read_count": 1321,
+      "write_count": 679,
+      "total_refs": 2000,
+      "wss_exact": 140,
+      "wss_approx": 145.52158772710095,
+      "timestamp": 13405630807064706
+    },
+    {
+      "window_number": 95,
+      "thread_id": 106012,
+      "read_count": 1413,
+      "write_count": 587,
+      "total_refs": 2000,
+      "wss_exact": 155,
+      "wss_approx": 169.56813360465705,
+      "timestamp": 13405630807065178
+    },
+    {
+      "window_number": 96,
+      "thread_id": 106012,
+      "read_count": 1288,
+      "write_count": 712,
+      "total_refs": 2000,
+      "wss_exact": 86,
+      "wss_approx": 85.93697065936423,
+      "timestamp": 13405630807065650
+    },
+    {
+      "window_number": 97,
+      "thread_id": 106012,
+      "read_count": 1446,
+      "write_count": 554,
+      "total_refs": 2000,
+      "wss_exact": 177,
+      "wss_approx": 191.84304611400228,
+      "timestamp": 13405630807066129
+    },
+    {
+      "window_number": 98,
+      "thread_id": 106012,
+      "read_count": 1421,
+      "write_count": 579,
+      "total_refs": 2000,
+      "wss_exact": 138,
+      "wss_approx": 136.84279049812653,
+      "timestamp": 13405630807080276
+    },
+    {
+      "window_number": 99,
+      "thread_id": 106012,
+      "read_count": 1128,
+      "write_count": 872,
+      "total_refs": 2000,
+      "wss_exact": 90,
+      "wss_approx": 88.75018578271658,
+      "timestamp": 13405630807080732
+    },
+    {
+      "window_number": 100,
+      "thread_id": 106012,
+      "read_count": 1228,
+      "write_count": 772,
+      "total_refs": 2000,
+      "wss_exact": 98,
+      "wss_approx": 94.47109424786774,
+      "timestamp": 13405630807081186
+    },
+    {
+      "window_number": 101,
+      "thread_id": 106012,
+      "read_count": 1319,
+      "write_count": 681,
+      "total_refs": 2000,
+      "wss_exact": 101,
+      "wss_approx": 101.80683972252402,
+      "timestamp": 13405630807081642
+    },
+    {
+      "window_number": 102,
+      "thread_id": 106012,
+      "read_count": 1317,
+      "write_count": 683,
+      "total_refs": 2000,
+      "wss_exact": 56,
+      "wss_approx": 58.126707362648595,
+      "timestamp": 13405630807091590
+    },
+    {
+      "window_number": 103,
+      "thread_id": 106012,
+      "read_count": 1280,
+      "write_count": 720,
+      "total_refs": 2000,
+      "wss_exact": 58,
+      "wss_approx": 61.919369323644595,
+      "timestamp": 13405630807092032
+    },
+    {
+      "window_number": 104,
+      "thread_id": 106012,
+      "read_count": 1298,
+      "write_count": 702,
+      "total_refs": 2000,
+      "wss_exact": 154,
+      "wss_approx": 154.50496559878607,
+      "timestamp": 13405630807092497
+    },
+    {
+      "window_number": 105,
+      "thread_id": 106012,
+      "read_count": 305,
+      "write_count": 181,
+      "total_refs": 486,
+      "wss_exact": 61,
+      "wss_approx": 60.64889525205958,
+      "timestamp": 13405630807092618
+    }
+  ]
+}
