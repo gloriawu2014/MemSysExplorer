@@ -1,0 +1,7 @@
+{
+  "dynamorio": false,
+  "ncu": false,
+  "nvbit": false,
+  "sniper": false,
+  "perf": true
+}
