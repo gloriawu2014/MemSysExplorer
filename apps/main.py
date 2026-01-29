@@ -116,7 +116,7 @@ def main():
     # Add dynamic arguments based on required_args
     for arg in required_args:
         if arg == "executable":
-            parser.add_argument(f"--{arg}", required=True, nargs=argparse.REMAINDER)
+            parser.add_argument(f"--{arg}", required=True)
         elif arg == "level":
             parser.add_argument(f"--{arg}", required=False, choices=["l1", "l2", "l3", "dram"])
         elif arg == "config":
@@ -142,6 +142,13 @@ def main():
 
             parser.add_argument(arg_name, **kwargs)
 
+    # Allow passing arguments to the executable being profiled. Place this at the end
+    # of the command line; everything after `--executable_args` will be collected
+    # and made available as a list on `args.executable_args`.
+    parser.add_argument("--executable_args", nargs=argparse.REMAINDER,
+                        help="Arguments to pass to the executable (place at end)")
+
+
     # Add optional memory tracking flag (for DynamoRIO)
     parser.add_argument("--enable-memory-stats", dest="enable_memory_stats", action="store_true",
                        help="Enable memory usage tracking (DynamoRIO -stats -mem flags)")
@@ -154,6 +161,10 @@ def main():
     if hasattr(args, 'executable') and args.executable:
         executable_path = args.executable[0] if isinstance(args.executable, list) else args.executable
         safe_kernel_name = os.path.splitext(os.path.basename(executable_path))[0]
+
+    # Ensure executable_args is always a list (may be None)
+    if not hasattr(args, 'executable_args') or args.executable_args is None:
+        args.executable_args = []
 
     profiler = profiler_class(**vars(args))
     raw_metrics = None

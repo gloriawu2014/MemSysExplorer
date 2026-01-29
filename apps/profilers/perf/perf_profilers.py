@@ -18,7 +18,8 @@ class PerfProfilers(FrontendInterface):
             Cache/memory level to extract statistics for (e.g., l1, l2, dram).
         """
         super().__init__(**kwargs)
-        self.executable_cmd = " ".join(self.config.get("executable", []))
+        #self.executable_cmd = " ".join(self.config.get("executable", []))
+        self.executable_cmd = self.config.get("executable")
         self.action = self.config.get("action")
         self.level = self.config.get("level", "custom")  # Default to custom if not provided
         
@@ -38,10 +39,20 @@ class PerfProfilers(FrontendInterface):
         str
             Basename of the executable for file naming.
         """        
-        executable_with_args = self.executable_cmd.split()
+        if isinstance(self.executable_cmd, str):
+            executable_with_args = [self.executable_cmd]
+        else:
+            executable_with_args = self.executable_cmd.split()
+
+        if hasattr(self.config, "get") and "executable_args" in self.config:
+            exec_args = self.config.get("executable_args") or []
+            if isinstance(exec_args, str):
+                exec_args = [exec_args]
+            executable_with_args += exec_args
+        
         report = os.path.basename(executable_with_args[0]) 
         perf_command = [
-            "perf", "stat", "-e", "L1-dcache-loads,L1-dcache-load-misses,L1-icache-loads,L1-icache-load-misses,L1-dcache-prefetches,L1-icache-prefetches,l2_cache_req_stat.ic_dc_hit_in_l2,l2_cache_req_stat.ic_dc_miss_in_l2,l2_pf_miss_l2_hit_l3,l2_pf_miss_l2_l3,l3_comb_clstr_state.request_miss,xi_ccx_sdp_req1,ls_dmnd_fills_from_sys.mem_io_local,ls_dmnd_fills_from_sys.mem_io_remote,ls_any_fills_from_sys.mem_io_remote,ls_any_fills_from_sys.mem_io_local",
+            "perf", "stat", "-e", "L1-dcache-loads:u,L1-dcache-load-misses:u,L1-icache-loads:u,L1-icache-load-misses:u,L1-dcache-prefetches:u,L1-icache-prefetches:u,l2_cache_req_stat.ic_dc_hit_in_l2:u,l2_cache_req_stat.ic_dc_miss_in_l2:u,l2_pf_miss_l2_hit_l3:u,l2_pf_miss_l2_l3:u,l3_comb_clstr_state.request_miss:u,xi_ccx_sdp_req1:u,ls_dmnd_fills_from_sys.mem_io_local:u,ls_dmnd_fills_from_sys.mem_io_remote:u,ls_any_fills_from_sys.mem_io_remote:u,ls_any_fills_from_sys.mem_io_local:u",
             "-o", "/dev/stdout"
         ] + executable_with_args
         return perf_command, report
