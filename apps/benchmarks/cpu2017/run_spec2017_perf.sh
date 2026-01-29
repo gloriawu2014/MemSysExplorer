@@ -81,12 +81,30 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
         args="${cmd#* }"
         args="$(echo "$args" | xargs)"
 
-        python3 "$MAIN_SCRIPT" \
-            -p perf -a both \
-            --executable "./${EXE_BASENAME}" \
-            --executable_args "$args"
-        exit
-    done < "$RUN_SH"
+        # Copy missing input files if needed
+        for f in $args; do
+            if [[ "$f" == *.* ]]; then
+                if [[ ! -f "./$f" ]]; then
+                    echo "Copying $f..."
+                    cp "$SPEC_ROOT/benchspec/CPU/$BENCH_ID/run/run_base_refrate_none.0000/$f" .
+                fi
+                if [[ ! -f "./$f" ]]; then
+                    echo "Warning: $f not found in source path"
+                fi
+            fi
+        done
+
+        # Hard code copy folder for 520 and 620
+        if [[ "$BENCH_ID" == "520.omnetpp_r" || "$BENCH_ID" == "620.omnetpp_s" ]]; then
+            echo "Copying ned/"
+            cp -r "$SPEC_ROOT/benchspec/CPU/$BENCH_ID/run/run_base_refrate_none.0000/ned/" .
+        fi
+
+        #python3 "$MAIN_SCRIPT" \
+         #   -p perf -a both \
+          #  --executable "./${EXE_BASENAME}" \
+           # --executable_args "$args"
+    done < "$RUN_SH" >> output.log 2>&1
 
     cd - > /dev/null
 done
