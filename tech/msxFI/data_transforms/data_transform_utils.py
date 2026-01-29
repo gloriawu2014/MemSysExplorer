@@ -69,16 +69,19 @@ def get_q_afloat(num_float, n_bits, n_exp, bias):
         mask = mant >= 1.0
         mant[mask] = mant[mask] - 1
     else:
-        for i in range(mant.size(0)):
-            mant[i] = ((mant[i]/scale).round()) * scale
-            if(mant[i] > 2.0):
-                exp[i] += 2
-            elif(mant[i] == 2.0):
-                mant[i] = mant[i] / 2
-                mant[i] = mant[i] - 1
-                exp[i] += 1
-            elif(mant[i] >= 1.0):
-                mant[i] = mant[i] - 1
+        mant = ((mant/scale).round()) * scale
+
+        mask_gt2 = mant > 2.0
+        mant[mask_gt2] = mant[mask_gt2] / 4
+        exp[mask_gt2] = exp[mask_gt2] + 2
+
+        mask_eq2 = mant == 2.0
+        mant[mask_eq2] = mant[mask_eq2] / 2
+        exp[mask_eq2] = exp[mask_eq2] + 1
+
+        mask_ge1 = mant >= 1.0
+        mant[mask_ge1] = mant[mask_ge1] - 1
+
         mask = torch.zeros(mant.size(0), dtype=torch.int64)
 
     sign = (sign < 0.).float().to(num_float.device)
@@ -109,11 +112,9 @@ def get_floating_point_binary(orig_flt, precision, q_type):
     
     conv_tensor = orig_flt.to(target_dtype)
     int_repr = conv_tensor.view(int_dtype)
-    batch_size = orig_flt.size(0)
-    binary_matrix = torch.zeros(batch_size, bit_width, dtype=torch.float32, device=fi_config.pt_device)
     int_vals = int_repr.long().to(fi_config.pt_device)
-    for bit_pos in range(bit_width):
-        binary_matrix[:, bit_width - 1 - bit_pos] = ((int_vals >> bit_pos) & 1).float()
+    bit_positions = torch.arange(bit_width - 1, -1, -1, device=fi_config.pt_device, dtype=torch.int64)
+    binary_matrix = ((int_vals.unsqueeze(1) >> bit_positions) & 1).float()
     return binary_matrix
   
 def binary_float_conversion(binary_tensor, precision, q_type):
@@ -216,12 +217,29 @@ def get_binary_array_mat(orig_flt, rep_conf, int_bits, frac_bits, exp_bias, q_ty
   else:
     mask = 0
     if q_type == 'int':
-      current_ = get_integers(orig_flt, int_bits+frac_bits)
       num_bits = int_bits + frac_bits
-      for i in range(current_.size(0)):
-        binary_repr = bin(current_[i].item() & ((1 <<  num_bits) -1))[2:].zfill(num_bits)
-        x[i] = torch.tensor(list(map(int, binary_repr)), dtype=torch.int)
-      return x, mask
+      # Symmetric quantization: scale = abs_max / (2^(n-1) - 1)
+      abs_max = torch.max(torch.abs(orig_flt))
+      if abs_max == 0:
+        scale = 1.0
+      else:
+        scale = abs_max / (2**(num_bits-1) - 1)
+
+      scaled_flt = orig_flt / scale
+      current_ = get_integers(scaled_flt, num_bits)
+
+      # Convert to n-bit unsigned two's complement to avoid sign extension
+      int_vals = current_.to(torch.int64)
+      if num_bits < 64:
+        mask_bits = (1 << num_bits) - 1
+        uvals = int_vals & mask_bits
+      else:
+        uvals = int_vals
+
+      for bit_pos in range(num_bits):
+        x[:, num_bits - 1 - bit_pos] = ((uvals >> bit_pos) & 1).float()
+
+      return x, scale
     elif q_type == 'float16':
       binary_matrix = get_floating_point_binary(orig_flt, 16, q_type)
       return binary_matrix, mask
@@ -348,15 +366,23 @@ def convert_f_mat(v_mlc, conf, int_bits, frac_bits, exp_bias, q_type, mask=None)
     power_exp = torch.exp2(exp+exp_bias) 
     current = sign*power_exp*mant
   elif q_type == 'int':
-    xid = 1
-    #saves a 1 if the number is negative, a 0 if its positive
-    is_valid = (x[:,0]==1).clone().detach().to(dtype=torch.int, device=fi_config.pt_device)
-    #negative and positive 2's complement check
-    current = current - (2**(int_bits+frac_bits-1))*is_valid
-    for i in list(reversed(range(int_bits+frac_bits-xid))):
-        is_valid = (x[:, xid] == 1).clone().detach().to(dtype=torch.int, device=fi_config.pt_device)
-        current = current + (2 ** (i))* is_valid
-        xid +=1
+    num_bits = int_bits + frac_bits
+    # Two's complement conversion using bit shift
+    sign_bit = (x[:, 0] == 1).to(dtype=torch.int64, device=fi_config.pt_device)
+    current = -(1 << (num_bits - 1)) * sign_bit
+
+    if num_bits > 1:
+        bit_powers = (1 << torch.arange(num_bits - 2, -1, -1, dtype=torch.int64, device=fi_config.pt_device))
+        remaining_bits = (x[:, 1:] == 1).to(dtype=torch.int64, device=fi_config.pt_device)
+        current = current + torch.sum(remaining_bits * bit_powers.unsqueeze(0), dim=1)
+
+    # Dequantize: r' = q * scale (scale passed through mask parameter)
+    if mask is not None and isinstance(mask, (float, int, torch.Tensor)):
+        scale = mask
+        current = current.to(torch.float32) * scale
+    else:
+        current = current.to(torch.float32)
+
     return current
   elif q_type == 'float16':
     current = binary_float_conversion(x, 16, q_type)

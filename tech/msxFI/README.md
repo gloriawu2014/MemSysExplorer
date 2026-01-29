@@ -79,11 +79,46 @@ python run_msxfi.py \
 ```
 
 **Key Parameters for this use case:**
-- `--mode`: Specifies a DRAM model (`dram1t`, `dram3t`).
+- `--mode`: Specifies a DRAM model (`dram1t`, `dram3t`, `dram333t`).
 - `--refresh_t`: **Required for DRAM.** Refresh time in microseconds (e.g., `80`). This is a crucial parameter for DRAM fault modeling.
 - `--vth_sigma`: Standard deviation of threshold voltage (Vth) in mV.
 - `--vdd`: **Optional.** Custom vdd in volts.
+- `--vpp`: **Optional.** Custom vpp in volts.
 - Note: `--rep_conf` is not used for DRAM models.
+
+### Use Case 2b: Finding DRAM Parameters for Target Fault Rate
+
+This mode performs a parameter sweep to find DRAM configurations (refresh time and vpp) that achieve a target fault rate. This is useful when you want to explore the design space or find operating points for a specific reliability target.
+
+**Command:**
+```bash
+python run_msxfi.py \
+  --mode dram333t \
+  --target_fr 0.01 \
+```
+
+**Output Example:**
+```
+Top configurations (showing up to 3 closest matches per Vpp):
+Total configurations found: 32, displaying: 12
+
+Vpp (V)   Refresh (us)   Fault Rate (%)    Error (%)
+-----------------------------------------------------------------
+1.25      10.0           0.010405          0.000405
+
+1.35      129.0          0.010271          0.000271
+
+1.40      462.0          0.009893          0.000107
+1.40      463.0          0.010127          0.000127
+1.40      461.0          0.009663          0.000337
+```
+
+**Key Parameters for this use case:**
+- `--target_fr`: **Required for sweep mode.** Target fault rate in percentage (e.g., `0.01` for 0.01%).
+- `--mode`: Must be a DRAM model (`dram1t`, `dram3t`, `dram333t`).
+- The sweep searches refresh times from 1us to 64ms and vpp voltages from 0.8V to 2.0V.
+- Results show up to 3 closest matches per vpp value, sorted by error from target.
+- When using `--target_fr`, other fault injection modes are disabled (matrix/DNN FI).
 
 ### Use Case 3: DNN Fault Injection
 
@@ -128,7 +163,8 @@ Below is a summary of all command-line parameters for `run_msxfi.py`:
 | `--refresh_t`     | Refresh time in microseconds (required for DRAM models).                                                     | N/A           | DRAM models         |
 | `--vth_sigma`     | Standard deviation of threshold voltage (Vth) in mV.                                                       | 50            | DRAM models         |
 | `--vdd`           | Custom vdd in volts for DRAM models. If not provided, uses default vdd from pickle file.        | N/A           | DRAM models         |
-| `--vpp`           | Custom vpp in volts for DRAM models models.                                                       | 1.4           | DRAM models         |
+| `--vpp`           | Custom vpp in volts for DRAM models.                                                       | N/A           | DRAM models         |
+| `--target_fr`     | Target fault rate in percentage for parameter sweep mode (e.g., `0.01` for 0.01%). Enables automatic search for matching refresh_t and vpp configurations. | N/A           | DRAM models         |
 | `--rep_conf`      | Rep conf for MLC encoding. Space-separated integers (e.g., `2 2 4`).                         | `[8, 8]`      | NVM models          |
 | `--model_class`   | Name of the model class in the model definition file.                                            | N/A           | DNN FI              |
 
@@ -242,6 +278,7 @@ msxFI/
 ├── example_nn/         # Example neural network
 │   ├── lenet/          # LeNet CNN implementation and training scripts
 │   └── resnet18/       # ResNet-18 CNN implementation and training scripts
+├── address_mapping.py  # Physical address mapping for eDRAM memory hierarchy
 ├── fi_config.py        # Core configuration parameters (temperature, feature_size, etc.)
 ├── fi_utils.py         # Utilities for fault injection, error map generation
 └── fault_injection.py  # Main fault injection logic

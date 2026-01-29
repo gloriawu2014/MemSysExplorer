@@ -15,14 +15,16 @@ def parse_args():
     parser.add_argument('--mode', type=str, default='rram_mlc', 
                         help="Memory model to use (rram_mlc, dram3t, dram1t, etc.). See fi_config.py for available models.")
     # DRAM specific
-    parser.add_argument('--refresh_t', type=float, 
+    parser.add_argument('--refresh_t', type=float,
                         help="DRAM refresh time in microseconds (used for DRAM modes).")
-    parser.add_argument('--vth_sigma', type=float, default=50, 
+    parser.add_argument('--vth_sigma', type=float, default=50,
                         help="Standard deviation of threshold voltage (Vth) in mV for DRAM fault rate calculation (default: 50mV).")
-    parser.add_argument('--vdd', type=float, 
+    parser.add_argument('--vdd', type=float,
                         help="Custom vdd in volts for DRAM modes. If not provided, uses default vdd from pickle file.")
-    parser.add_argument('--vpp', type=float, default=1.4,
+    parser.add_argument('--vpp', type=float,
                         help="Custom Vpp in volts for DRAM modes. If not provided, uses default vpp from pickle file.")
+    parser.add_argument('--target_fr', type=float,
+                        help="Target fault rate (in percentage, e.g., 0.1 for 0.1%%). Enables sweep mode for refresh_t, vpp, and vdd.")
     # MLC specific
     parser.add_argument('--rep_conf', nargs='*', default=[8, 8],
                         help="Array of number of levels per cell used for storage per data value, e.g.: --rep_conf 8 8")
@@ -69,10 +71,9 @@ def generate_output_filename(model_path, mem_model, args):
     """Generate output filename for faulty model."""
     original_filename = os.path.basename(model_path)
     base_name, ext = os.path.splitext(original_filename)
-    
+
     float_types = ['float16', 'bfloat16', 'float32', 'float64']
     filename_parts = [base_name, mem_model, f"s{args.seed}", f"q{args.q_type}"]
-    # Add quantization bits only for fixed-point types
     if args.q_type not in float_types:
         filename_parts.append(f"i{args.int_bits}")
         filename_parts.append(f"f{args.frac_bits}")
@@ -83,26 +84,58 @@ def generate_output_filename(model_path, mem_model, args):
             filename_parts.append(f"vdd{args.vdd}")
         if args.vpp is not None:
             filename_parts.append(f"vpp{args.vpp}")
-            
+
     filename = "_".join(filename_parts) + ext
-    
+
     return os.path.join(os.path.dirname(model_path), filename)
 
 def main():
     args = parse_args()
-    
+
     try:
         rep_conf_list = parse_rep_conf(args.rep_conf)
     except ValueError as e:
         print(f"Error: {e}")
         return
-        
+
     import msxFI.fi_config as fi_config
-    from msxFI.fi_utils import validate_config
+    from msxFI.fi_utils import validate_config, sweep_dram_params, filter_top_configs_per_vpp
 
     if args.mode not in fi_config.mem_dict:
         print(f"Error: Unknown memory model '{args.mode}'")
         print(f"Available models: {list(fi_config.mem_dict.keys())}")
+        return
+
+    # Handle target_fr sweep mode
+    if args.target_fr is not None:
+        if 'dram' not in args.mode:
+            print("Error: --target_fr is only supported for DRAM modes (dram3t, dram1t, dram333t)")
+            return
+
+        print(f"Running parameter sweep mode for target fault rate: {args.target_fr}%")
+        results = sweep_dram_params(args.mode, args.target_fr, args.vth_sigma)
+
+        if results:
+            filtered = filter_top_configs_per_vpp(results, args.target_fr, top_n=3)
+
+            print(f"\nTop configurations (showing up to 3 closest matches per Vpp):")
+            print(f"Total configurations found: {len(results)}, displaying: {len(filtered)}")
+            print(f"\n{'Vpp (V)':<10}{'Refresh (us)':<15}{'Fault Rate (%)':<18}{'Error (%)':<12}")
+            print("-" * 65)
+
+            current_vpp = None
+            for rt, _, vpp, fr in filtered:
+                error = abs(fr - args.target_fr)
+                if vpp != current_vpp:
+                    if current_vpp is not None:
+                        print()
+                    current_vpp = vpp
+
+                print(f"{vpp:<10.2f}{rt:<15.1f}{fr:<18.6f}{error:<12.6f}")
+        else:
+            print("\nNo configurations found matching the target fault rate.")
+            print("Try adjusting the target fault rate or expanding the sweep ranges.")
+
         return
 
     if not validate_config(args, rep_conf_list):
@@ -119,7 +152,6 @@ def main():
         print(f"Using user-provided seed: {args.seed}")
 
     test_size = (args.matrix_size, args.matrix_size)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     base_params = {
         'seed': args.seed,
@@ -133,10 +165,7 @@ def main():
             raise ValueError("refresh_t is required for DRAM models")
         base_params['refresh_t'] = args.refresh_t * 1e-6
         base_params['vth_sigma'] = args.vth_sigma / 1000.0  # convert mV to V
-        if args.vdd is not None:
-            base_params['custom_vdd'] = args.vdd
-            param_info = f"refresh_t={args.refresh_t}us, vth_sigma={args.vth_sigma}mV, vdd={args.vdd}V"
-        elif args.vpp is not None:
+        if args.vpp is not None:
             base_params['custom_vpp'] = args.vpp
             param_info = f"refresh_t={args.refresh_t}us, vth_sigma={args.vth_sigma}mV, vpp={args.vpp}V"
         else:

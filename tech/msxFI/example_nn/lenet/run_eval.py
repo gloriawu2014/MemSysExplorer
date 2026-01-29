@@ -123,7 +123,10 @@ def main():
     print("\nEvaluating original model...")
     original_model_path = os.path.join(WORKSPACE_ROOT, MODEL_PATH)
     
-    original_model = torch.load(original_model_path, map_location=device, weights_only=False)
+    try:
+        original_model = torch.load(original_model_path, map_location=device, weights_only=True)
+    except Exception:
+        original_model = torch.load(original_model_path, map_location=device, weights_only=False)
     original_model = original_model.to(device)
     
     original_accuracy = evaluate_model(original_model, test_loader, device)
@@ -131,7 +134,10 @@ def main():
 
     # Evaluate faulty model
     print("\nEvaluating faulty model...")
-    faulty_model = torch.load(faulty_model_path, map_location=device, weights_only=False)
+    try:
+        faulty_model = torch.load(faulty_model_path, map_location=device, weights_only=True)
+    except Exception:
+        faulty_model = torch.load(faulty_model_path, map_location=device, weights_only=False)
     faulty_model = faulty_model.to(device)
     
     faulty_accuracy = evaluate_model(faulty_model, test_loader, device)

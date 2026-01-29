@@ -44,7 +44,9 @@ def main():
     # --- Configuration ---
     MODE = "dram333t"  # Specific memory model: "rram_mlc", "fefet_200d", "dram3t", "dram1t", etc.
     SEED = 0
-    Q_TYPE = "float32"  # Use 32-bit floating point for fault injection
+    Q_TYPE = "int"  # Quantization type
+    INT_BITS = 8  # Number of integer bits for int/fixed-point types
+    FRAC_BITS = 0  # Number of fractional bits for int/fixed-point types
     REP_CONF = [8, 8]
 
     MODEL_PATH = "msxFI/example_nn/resnet18/checkpoints/resnet18.pth"
@@ -52,7 +54,7 @@ def main():
 
     # DRAM specific parameters (only used for DRAM models)
     REFRESH_T = 501  # in microseconds
-    SIGMA = 0.028
+    SIGMA = 50
 
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
     WORKSPACE_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "../../.."))
@@ -60,18 +62,30 @@ def main():
     model_basename, model_ext = os.path.splitext(os.path.basename(MODEL_PATH))
     model_dir_path = os.path.dirname(MODEL_PATH)
 
+    # --- Step 1: Generate Faulty Model ---
     print("--- Step 1: Generating Faulty Model ---")
 
+    # Generate filename based on memory model type (must match run_msxfi.py logic)
+    float_types = ['float16', 'bfloat16', 'float32', 'float64']
+    filename_parts = [model_basename, MODE, f"s{SEED}", f"q{Q_TYPE}"]
+    
+    # Add int_bits and frac_bits for non-float types
+    if Q_TYPE not in float_types:
+        filename_parts.append(f"i{INT_BITS}")
+        filename_parts.append(f"f{FRAC_BITS}")
+    
+    # Add DRAM-specific parameters
     if 'dram' in MODE:
         if REFRESH_T is None:
             print("Error: For DRAM modes, refresh_t must be set.", file=sys.stderr)
             sys.exit(1)
-        faulty_model_name = f"{model_basename}_{MODE}_s{SEED}_q{Q_TYPE}_rt{float(REFRESH_T)}{model_ext}"
-    else:
-        faulty_model_name = f"{model_basename}_{MODE}_s{SEED}_q{Q_TYPE}{model_ext}"
-
+        filename_parts.append(f"rt{float(REFRESH_T)}")
+    
+    faulty_model_name = "_".join(filename_parts) + model_ext
     faulty_model_rel_path = os.path.join(model_dir_path, faulty_model_name)
     faulty_model_path = os.path.join(WORKSPACE_ROOT, faulty_model_rel_path)
+
+    print(f"Expected faulty model path: {faulty_model_path}")
 
     msxfi_script_path = os.path.join(WORKSPACE_ROOT, "msxFI", "run_msxfi.py")
 
@@ -91,6 +105,12 @@ def main():
         "--q_type", Q_TYPE
     ]
 
+    # Add int_bits and frac_bits for non-float types
+    if Q_TYPE not in float_types:
+        cmd_list.extend(["--int_bits", str(INT_BITS)])
+        cmd_list.extend(["--frac_bits", str(FRAC_BITS)])
+
+    # Add rep_conf for NVM models (not for DRAM models)
     if 'dram' not in MODE:
         cmd_list.extend(["--rep_conf"] + [str(x) for x in REP_CONF])
 
@@ -118,6 +138,7 @@ def main():
     
     print("")
 
+    # --- Step 2: Evaluating Models (Integrated) ---
     print("--- Step 2: Evaluating Models ---")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -130,11 +151,12 @@ def main():
 
     _, test_loader = get_cifar10_dataloaders(batch_size=1000, train_root=data_root, download=True)
 
+    # Evaluate original model
     print("\nEvaluating original model...")
     original_model_path = os.path.join(WORKSPACE_ROOT, MODEL_PATH)
     
     original_model = ResNet18(num_classes=10).to(device)
-    checkpoint = torch.load(original_model_path, map_location=device)
+    checkpoint = torch.load(original_model_path, map_location=device, weights_only=True)
     state_dict = checkpoint['net']
 
     if list(state_dict.keys())[0].startswith('module.'):
@@ -146,9 +168,13 @@ def main():
     original_accuracy = evaluate_model(original_model, test_loader, device)
     print(f"Accuracy of the original model: {original_accuracy:.2f}%")
 
+    # Evaluate faulty model
     print("\nEvaluating faulty model...")
 
-    faulty_model = torch.load(faulty_model_path, map_location=device, weights_only=False)
+    try:
+        faulty_model = torch.load(faulty_model_path, map_location=device, weights_only=True)
+    except Exception:
+        faulty_model = torch.load(faulty_model_path, map_location=device, weights_only=False)
     faulty_model = faulty_model.to(device)
     
     faulty_accuracy = evaluate_model(faulty_model, test_loader, device)

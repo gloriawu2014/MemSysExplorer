@@ -117,7 +117,10 @@ def dnn_fi(model=None, model_def_path=None, model_path=None, model_class_name=No
     
     print(f"Loading DNN model from {model_path}...")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+    try:
+        checkpoint = torch.load(model_path, map_location=device, weights_only=True)
+    except Exception:
+        checkpoint = torch.load(model_path, map_location=device, weights_only=False)
     
     if isinstance(checkpoint, nn.Module):
         # Case 1: Checkpoint is a model object (e.g., LeNet)
@@ -133,6 +136,8 @@ def dnn_fi(model=None, model_def_path=None, model_path=None, model_class_name=No
             state_dict = checkpoint
 
         # Handle DataParallel prefix if present
+        if not state_dict:
+            raise ValueError(f"Empty state_dict loaded from {model_path}")
         if list(state_dict.keys())[0].startswith('module.'):
             unwrapped_state_dict = {k.partition('module.')[2]: v for k, v in state_dict.items()}
             model.load_state_dict(unwrapped_state_dict)
