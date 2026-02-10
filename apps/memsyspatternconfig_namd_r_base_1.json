@@ -1,0 +1,29 @@
+{
+  "exp_name": "PerfProfilers",
+  "benchmark_name": "Benchmark1",
+  "read_freq": 0,
+  "total_reads": 0,
+  "write_freq": 0,
+  "total_writes": 0,
+  "read_size": 64,
+  "write_size": 64,
+  "total_writes_i": 0,
+  "total_writes_d": 0,
+  "total_reads_d": 0,
+  "total_reads_i": 0,
+  "workingset_size": -1,
+  "execution_time": null,
+  "peak_memory_kb": null,
+  "metadata": null,
+  "unit": {
+    "read_freq": "bytes/s",
+    "write_freq": "bytes/s",
+    "total_reads": "count",
+    "total_writes": "count",
+    "read_size": "bytes",
+    "write_size": "bytes",
+    "workingset_size": "bytes",
+    "execution_time": "seconds",
+    "peak_memory_kb": "KB"
+  }
+}
