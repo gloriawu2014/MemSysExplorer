@@ -11,15 +11,18 @@ GENERIC_EVENTS = {
     "l1_data": [
         ("L1-dcache-loads:u", "l1d_loads"),
         ("L1-dcache-load-misses:u", "l1d_load_misses"),
-        ("L1-dcache-stores:u", "l1d_stores"),
+        #("L1-dcache-stores:u", "l1d_stores"),
+        ("ls_dispatch.store_dispatch:u", "l1d_stores"),
     ],
     "l1_instruction": [
         ("L1-icache-load-misses:u", "l1i_load_misses"),
     ],
     "llc": [
-        ("LLC-loads:u", "llc_loads"),
-        ("LLC-load-misses:u", "llc_load_misses"),
-        ("LLC-stores:u", "llc_stores"),
+        #("LLC-loads:u", "llc_loads"),
+        ("l3_cache_accesses", "llc_loads"),
+        #("LLC-load-misses:u", "llc_load_misses"),
+        ("l3_misses", "llc_load_misses"),
+        #("LLC-stores:u", "llc_stores"),
     ],
     "general": [
         ("cycles:u", "cycles"),
@@ -58,10 +61,11 @@ AMD_EVENTS = {
         ("l2_pf_miss_l2_l3:u", "l2_pf_miss_l3"),
     ],
     "l3": [
-        ("l3_comb_clstr_state.request_miss:u", "l3_misses"),
+        #("l3_comb_clstr_state.request_miss:u", "l3_misses"),
+        #("l3_misses:u", "l3_misses"),
     ],
     "interconnect": [
-        ("xi_ccx_sdp_req1:u", "ccx_requests"),
+        #("xi_ccx_sdp_req1:u", "ccx_requests"),
     ],
     "memory": [
         ("ls_dmnd_fills_from_sys.mem_io_local:u", "dram_local_demand"),

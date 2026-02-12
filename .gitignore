@@ -1,2 +1,3 @@
 __pycache__/
+apps/memsys*.json
 apps/benchmarks/cpu2017/spec_runs

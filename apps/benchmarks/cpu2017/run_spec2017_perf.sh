@@ -56,55 +56,66 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
     done
 
     # ---------- Generate run script ----------
-    RUN_SH="${RUN_DIR}/${BENCH_ID}.${RUN_TYPE}.sh.log"
+    RUN_SH="${RUN_DIR}/${BENCH_ID}.${RUN_TYPE}.sh"
     echo "#!/bin/bash" > "$RUN_SH"
+    echo "#SBATCH --job-name=${BENCH_ID}" >> "$RUN_SH"
+    echo "#SBATCH --partition=cpu-q" >> "$RUN_SH"
+    echo "#SBATCH --cpus-per-task=1" >> "$RUN_SH"
+    echo "#SBATCH --time=01:00:00" >> "$RUN_SH"
+    echo "#SBATCH --output=${BENCH_ID}.out" >> "$RUN_SH"
+    echo "#SBATCH --error=${BENCH_ID}.err" >> "$RUN_SH"
     echo "# Generated from $CMD_FILE" >> "$RUN_SH"
     echo "# Executable: $EXE_BASENAME" >> "$RUN_SH"
     echo "" >> "$RUN_SH"
+
+    PREFIX="python3 ${MAIN_SCRIPT} -p perf -a both --level l1 --arch amd"
 
     # Wrap each line with executable
     while IFS= read -r line || [[ -n "$line" ]]; do
         trimmed=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
         [[ -z "$trimmed" ]] && continue
-        echo "./$EXE_BASENAME $trimmed" >> "$RUN_SH"
-    done < "$CMD_FILE"
-
-    # Execute using the renamed script
-    cd "$RUN_DIR"
-    echo "   → Entering dir: $(pwd)"
-    echo "   → Executing ${BENCH_ID} (${RUN_TYPE}) with Perf..."
-
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        [[ -z "$line" || "$line" =~ ^# ]] && continue
-
-        cmd="${line%%>*}"
-        args="${cmd#* }"
-        args="$(echo "$args" | xargs)"
 
         # Copy missing input files if needed
-        for f in $args; do
+        for f in $trimmed; do
             if [[ "$f" == *.* ]]; then
                 if [[ ! -f "./$f" ]]; then
                     echo "Copying $f..."
-                    cp "$SPEC_ROOT/benchspec/CPU/$BENCH_ID/run/run_base_refrate_none.0000/$f" .
+                    cp "$SPEC_ROOT/benchspec/CPU/$BENCH_ID/run/run_base_refrate_none.0000/$f" "${RUN_DIR}/"
                 fi
                 if [[ ! -f "./$f" ]]; then
                     echo "Warning: $f not found in source path"
                 fi
             fi
-        done
+        done >> "${RUN_DIR}/output.log" 2>&1
 
-        # Hard code copy folder for 520 and 620
-        if [[ "$BENCH_ID" == "520.omnetpp_r" || "$BENCH_ID" == "620.omnetpp_s" ]]; then
-            echo "Copying ned/"
-            cp -r "$SPEC_ROOT/benchspec/CPU/$BENCH_ID/run/run_base_refrate_none.0000/ned/" .
-        fi
+        echo "${PREFIX} --executable ./$EXE_BASENAME --executable_args $trimmed" >> "$RUN_SH"
+    done < "$CMD_FILE"
 
-        #python3 "$MAIN_SCRIPT" \
-         #   -p perf -a both \
-          #  --executable "./${EXE_BASENAME}" \
-           # --executable_args "$args"
-    done < "$RUN_SH" >> output.log 2>&1
+    # Hard code copy files for 520 & 620, 500, 548
+    if [[ "$BENCH_ID" == "520.omnetpp_r" || "$BENCH_ID" == "620.omnetpp_s" ]]; then
+        echo "Copying ned/"
+        cp -r "$SPEC_ROOT/benchspec/CPU/$BENCH_ID/run/run_base_refrate_none.0000/ned/" "${RUN_DIR}/"
+    fi
+    if [[ "$BENCH_ID" == "500.perlbench_r" ]]; then
+        echo "Copying lib/"
+        echo "Copying cpu2017_mhonarc.rc"
+        cp -r "$SPEC_ROOT/benchspec/CPU/$BENCH_ID/run/run_base_refrate_none.0000/lib/" "${RUN_DIR}/"
+        cp "$SPEC_ROOT/benchspec/CPU/$BENCH_ID/run/run_base_refrate_none.0000/cpu2017_mhonarc.rc" "${RUN_DIR}/"
+    fi
+    if [[ "$BENCH_ID" == "548.exchange2_r" ]]; then
+        echo "Copying puzzles.txt"
+        rm -f "puzzles.txt"
+        cp "$SPEC_ROOT/benchspec/CPU/$BENCH_ID/run/run_base_refrate_none.0000/puzzles.txt" "${RUN_DIR}/"
+    fi
+
+    chmod +x "$RUN_SH"
+
+    # Execute using the renamed script
+    cd "$RUN_DIR"
+    echo "   → Entering dir: $(pwd)"
+    echo "   → Executing ${BENCH_ID} (${RUN_TYPE}) with Perf..."
+    sbatch "$RUN_SH"
+    echo "   → Finished ${BENCH_ID} (${RUN_TYPE}) with Perf..."
 
     cd - > /dev/null
 done
