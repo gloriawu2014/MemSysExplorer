@@ -6,81 +6,136 @@ import os
 # Cache line size in bytes
 CACHE_LINE_SIZE = 64
 
-# Generic events - work on both AMD and Intel
-GENERIC_EVENTS = {
-    "l1_data": [
-        ("L1-dcache-loads:u", "l1d_loads"),
-        ("L1-dcache-load-misses:u", "l1d_load_misses"),
-        #("L1-dcache-stores:u", "l1d_stores"),
-        ("ls_dispatch.store_dispatch:u", "l1d_stores"),
-    ],
-    "l1_instruction": [
-        ("L1-icache-load-misses:u", "l1i_load_misses"),
-    ],
-    "llc": [
-        #("LLC-loads:u", "llc_loads"),
-        ("l3_cache_accesses", "llc_loads"),
-        #("LLC-load-misses:u", "llc_load_misses"),
-        ("l3_misses", "llc_load_misses"),
-        #("LLC-stores:u", "llc_stores"),
-    ],
-    "general": [
-        ("cycles:u", "cycles"),
-        ("instructions:u", "instructions"),
-    ],
+# Supported architectures (Intel and AMD only)
+SUPPORTED_ARCHS = ["intel", "amd"]
+
+# Level dependencies - strict filtering (only requested level)
+LEVEL_DEPENDENCIES = {
+    "l1": ["l1"],
+    "l2": ["l2"],
+    "l3": ["l3"],
+    "dram": ["dram"],
+    "all": None,  # All levels
 }
 
-# Intel-specific events
-# Run `perf list | grep mem_load` to check naming on your system
-INTEL_EVENTS = {
-    "l2_loads": [
-        ("mem_load_retired.l2_hit:u", "l2_load_hits"),
-        ("mem_load_retired.l2_miss:u", "l2_load_misses"),
-    ],
-    "l2_stores": [
-        ("l2_rqsts.all_rfo:u", "l2_rfo_total"),
-        ("l2_rqsts.rfo_hit:u", "l2_rfo_hits"),
-        ("l2_rqsts.rfo_miss:u", "l2_rfo_misses"),
-    ],
-    "l3": [
-        ("mem_load_retired.l3_hit:u", "l3_hits"),
-        ("mem_load_retired.l3_miss:u", "l3_misses"),
-    ],
-    "dram": [
-        ("mem_load_l3_miss_retired.local_dram:u", "dram_local"),
-        ("mem_load_l3_miss_retired.remote_dram:u", "dram_remote"),
-    ],
+# Formula-first organization: level -> metric -> architecture counters
+# Each metric shows the perf event name for each architecture
+# None means the counter is not available on that architecture
+PERF_FORMULAS = {
+    "l1": {
+        "l1d_loads": {
+            "intel": "L1-dcache-loads:u",
+            "amd": "L1-dcache-loads:u",
+        },
+        "l1d_load_misses": {
+            "intel": "L1-dcache-load-misses:u",
+            "amd": "L1-dcache-load-misses:u",
+        },
+        "l1d_stores": {
+            "intel": "L1-dcache-stores:u",
+            "amd": None,  # Not available on AMD; use l2_request_g1.change_to_x at L2
+        },
+        "l1i_load_misses": {
+            "intel": "L1-icache-load-misses:u",
+            "amd": "L1-icache-load-misses:u",
+        },
+    },
+    "l2": {
+        "l2_load_hits": {
+            "intel": "mem_load_retired.l2_hit:u",
+            "amd": "l2_cache_req_stat.ic_dc_hit_in_l2:u",
+        },
+        "l2_load_misses": {
+            "intel": "mem_load_retired.l2_miss:u",
+            "amd": "l2_cache_req_stat.ic_dc_miss_in_l2:u",
+        },
+        "l2_rfo_total": {
+            "intel": "l2_rqsts.all_rfo:u",
+            # change_to_x = requests for exclusive ownership (store-like)
+            "amd": "l2_request_g1.change_to_x:u",
+        },
+        "l2_rfo_hits": {
+            "intel": "l2_rqsts.rfo_hit:u",
+            "amd": None,  # AMD doesn't split RFO hit/miss
+        },
+        "l2_rfo_misses": {
+            "intel": "l2_rqsts.rfo_miss:u",
+            "amd": None,  # AMD doesn't split RFO hit/miss
+        },
+        "l2_pf_hit_l3": {
+            "intel": None,
+            "amd": "l2_pf_miss_l2_hit_l3:u",
+        },
+        "l2_pf_miss_l3": {
+            "intel": None,
+            "amd": "l2_pf_miss_l2_l3:u",
+        },
+    },
+    "l3": {
+        "l3_hits": {
+            "intel": "mem_load_retired.l3_hit:u",
+            # AMD: derive from l2_pf_miss_l2_hit_l3 (prefetch that hit L3)
+            "amd": "l2_pf_miss_l2_hit_l3:u",
+        },
+        "l3_misses": {
+            "intel": "mem_load_retired.l3_miss:u",
+            # AMD: l3_comb_clstr_state.request_miss not available; use l2_pf_miss_l2_l3
+            "amd": "l2_pf_miss_l2_l3:u",
+        },
+        "llc_loads": {
+            "intel": "LLC-loads:u",
+            # AMD: L2 misses go to L3, so use all_l2_cache_misses
+            "amd": None,
+        },
+        "llc_load_misses": {
+            "intel": "LLC-load-misses:u",
+            # AMD: L3 misses = fills from memory
+            "amd": "l1_data_cache_fills_from_memory:u",
+        },
+        "llc_stores": {
+            "intel": None,  # Not available on Intel
+            "amd": None,    # Not directly available on AMD
+        },
+    },
+    "dram": {
+        # DRAM Reads (fills from memory)
+        "dram_local": {
+            "intel": "mem_load_l3_miss_retired.local_dram:u",
+            # AMD: fills from local memory
+            "amd": "l1_data_cache_fills_from_memory:u",
+        },
+        "dram_remote": {
+            "intel": "mem_load_l3_miss_retired.remote_dram:u",
+            # AMD: fills from remote node
+            "amd": "l1_data_cache_fills_from_remote_node:u",
+        },
+        # DRAM Writes
+        "dram_write_local": {
+            "intel": None,
+            "amd": None,  # Not directly measurable
+        },
+        "dram_write_remote": {
+            "intel": None,
+            "amd": None,  # Not directly measurable
+        },
+    },
+    "interconnect": {
+        "ccx_requests": {
+            "intel": None,
+            "amd": "xi_ccx_sdp_req1:u",
+        },
+    },
+    "general": {
+        "cycles": {
+            "intel": "cycles:u",
+            "amd": "cycles:u",
+        },
+        "instructions": {
+            "intel": "instructions:u",
+            "amd": "instructions:u",
+        },
+    },
 }
-
-# AMD Zen-specific events
-AMD_EVENTS = {
-    "l2": [
-        ("l2_cache_req_stat.ic_dc_hit_in_l2:u", "l2_hits"),
-        ("l2_cache_req_stat.ic_dc_miss_in_l2:u", "l2_misses"),
-        ("l2_pf_miss_l2_hit_l3:u", "l2_pf_hit_l3"),
-        ("l2_pf_miss_l2_l3:u", "l2_pf_miss_l3"),
-    ],
-    "l3": [
-        #("l3_comb_clstr_state.request_miss:u", "l3_misses"),
-        #("l3_misses:u", "l3_misses"),
-    ],
-    "interconnect": [
-        #("xi_ccx_sdp_req1:u", "ccx_requests"),
-    ],
-    "memory": [
-        ("ls_dmnd_fills_from_sys.mem_io_local:u", "dram_local_demand"),
-        ("ls_dmnd_fills_from_sys.mem_io_remote:u", "dram_remote_demand"),
-        ("ls_any_fills_from_sys.mem_io_local:u", "dram_local_any"),
-        ("ls_any_fills_from_sys.mem_io_remote:u", "dram_remote_any"),
-    ],
-}
-
-SUPPORTED_ARCHS = ["generic", "amd", "intel"]
-
-
-def _safe_div(numerator, denominator, default=0.0):
-    """Safe division that returns default if denominator is zero."""
-    return numerator / denominator if denominator != 0 else default
 
 
 class PerfProfilers(FrontendInterface):
@@ -89,7 +144,7 @@ class PerfProfilers(FrontendInterface):
         self.executable_cmd = self.config.get("executable")
         self.action = self.config.get("action")
         self.level = self.config.get("level", "custom")
-        self.arch = self.config.get("arch", "generic").lower()
+        self.arch = self.config.get("arch", "intel").lower()
         self.repeat = self.config.get("repeat", 3)
 
         if self.arch not in SUPPORTED_ARCHS:
@@ -98,24 +153,80 @@ class PerfProfilers(FrontendInterface):
         self.output = ""
         self.report = None
         self.data = {}
-        self.active_events = self._get_events_for_arch()
+        self.active_events = self.get_events_for_arch()
 
-    def _get_events_for_arch(self):
-        """Get the list of events based on architecture."""
+    def get_events_for_arch(self):
+        """Get events based on architecture and requested level."""
         events = []
-        for category in GENERIC_EVENTS.values():
-            events.extend(category)
+        required_levels = LEVEL_DEPENDENCIES.get(self.level)
 
-        if self.arch == "amd":
-            for category in AMD_EVENTS.values():
-                events.extend(category)
-        elif self.arch == "intel":
-            for category in INTEL_EVENTS.values():
-                events.extend(category)
-
+        for level, metrics in PERF_FORMULAS.items():
+            if required_levels is not None and level not in required_levels:
+                continue
+            for metric_key, arch_counters in metrics.items():
+                event_name = arch_counters.get(self.arch)
+                if event_name is not None:
+                    events.append((event_name, metric_key))
         return events
 
-    def _build_event_string(self):
+    def validate_events(self):
+        """Validate that perf events are available on this system.
+
+        Runs a quick perf stat probe with all events and parses stderr
+        to identify unsupported events. Returns list of valid events
+        and prints warnings for invalid ones.
+        """
+        if not self.active_events:
+            return []
+
+        event_string = ",".join(event for event, _ in self.active_events)
+
+        try:
+            result = subprocess.run(
+                ["perf", "stat", "-e", event_string, "--", "true"],
+                capture_output=True,
+                text=True
+            )
+        except FileNotFoundError:
+            print("Warning: perf not found, skipping event validation")
+            return self.active_events
+
+        stderr = result.stderr
+
+        # Find invalid events from stderr
+        invalid_events = set()
+
+        for event, metric in self.active_events:
+            base_event = re.sub(r':[uk]+$', '', event)
+            # Check for common error patterns
+            if (f"event '{base_event}'" in stderr and "not found" in stderr) or \
+               (f"event '{event}'" in stderr and "not found" in stderr):
+                invalid_events.add(event)
+
+        # Also check the output for <not supported> markers
+        for line in stderr.split('\n'):
+            if '<not supported>' in line or '<not counted>' in line:
+                # Extract event name from: "0  event_name  <not supported>"
+                for event, metric in self.active_events:
+                    base_event = re.sub(r':[uk]+$', '', event)
+                    if base_event in line:
+                        invalid_events.add(event)
+
+        # Filter out invalid events
+        valid_events = [(event, metric) for event, metric in self.active_events
+                        if event not in invalid_events]
+
+        # Print warnings for invalid events
+        if invalid_events:
+            print(f"Warning: {len(invalid_events)} event(s) not supported on this system:")
+            for event in sorted(invalid_events):
+                metric = next((m for e, m in self.active_events if e == event), "unknown")
+                print(f"  - {event} ({metric})")
+            print(f"Continuing with {len(valid_events)} valid event(s)")
+
+        return valid_events
+
+    def build_event_string(self):
         """Build comma-separated event string from active events."""
         return ",".join(event for event, _ in self.active_events)
 
@@ -133,7 +244,7 @@ class PerfProfilers(FrontendInterface):
             executable_with_args += exec_args
 
         report = os.path.basename(executable_with_args[0])
-        event_string = self._build_event_string()
+        event_string = self.build_event_string()
 
         perf_command = [
             "perf", "stat",
@@ -146,6 +257,11 @@ class PerfProfilers(FrontendInterface):
 
     def profiling(self, **kwargs):
         """Run the target executable under perf stat and save output."""
+        # Validate events before profiling
+        self.active_events = self.validate_events()
+        if not self.active_events:
+            raise RuntimeError("No valid perf events available for this system")
+
         perf_command, report = self.construct_command()
         try:
             print(f"Executing: {' '.join(perf_command)}")
@@ -174,7 +290,7 @@ class PerfProfilers(FrontendInterface):
             print(f"Output written to file {report}.perf-rep")
 
     def extract_metrics(self, report_file=None, **kwargs):
-        """Extract performance metrics from perf output."""
+        """Extract raw performance metrics from perf output."""
         toparse = ""
         if self.action == "extract_metrics":
             with open(report_file) as file:
@@ -194,240 +310,26 @@ class PerfProfilers(FrontendInterface):
             time_match = re.search(r"([\d.]+)\s+seconds time elapsed", toparse)
             self.data["time_elapsed"] = float(time_match.group(1)) if time_match else 0.0
 
-            self._compute_derived_metrics()
+            # Store the level for PerfConfig to use
+            self.data["level"] = self.level
+
+            # NO compute_derived_metrics() call - let PerfConfig handle it
             return self.data
 
         except AttributeError as e:
             print(f"Failed to extract data: {e}")
             raise
 
-    def _compute_derived_metrics(self):
-        """Compute derived metrics based on the memory hierarchy cascade model."""
-        data = self.data
-
-        # L1 Data Cache
-        l1d_loads = data.get("l1d_loads", 0)
-        l1d_load_misses = data.get("l1d_load_misses", 0)
-        l1d_stores = data.get("l1d_stores", 0)
-
-        data["l1d_total_reads"] = l1d_loads
-        data["l1d_total_writes"] = l1d_stores
-        data["l1d_read_hits"] = l1d_loads - l1d_load_misses
-        data["l1d_read_hit_rate"] = _safe_div(l1d_loads - l1d_load_misses, l1d_loads)
-        data["l1d_read_miss_rate"] = _safe_div(l1d_load_misses, l1d_loads)
-
-        # L2 Cache
-        l1i_load_misses = data.get("l1i_load_misses", 0)
-        data["l2_total_reads"] = l1d_load_misses + l1i_load_misses
-
-        l2_load_hits = data.get("l2_load_hits", 0) or data.get("l2_hits", 0)
-        l2_load_misses = data.get("l2_load_misses", 0) or data.get("l2_misses", 0)
-
-        if l2_load_hits > 0 or l2_load_misses > 0:
-            data["l2_read_hits"] = l2_load_hits
-            data["l2_read_misses"] = l2_load_misses
-            l2_load_total = l2_load_hits + l2_load_misses
-            data["l2_read_hit_rate"] = _safe_div(l2_load_hits, l2_load_total)
-            data["l2_read_miss_rate"] = _safe_div(l2_load_misses, l2_load_total)
-        else:
-            data["l2_read_hits"] = 0
-            data["l2_read_misses"] = 0
-            data["l2_read_hit_rate"] = 0.0
-            data["l2_read_miss_rate"] = 0.0
-
-        # L2 Stores via RFO
-        l2_rfo_total = data.get("l2_rfo_total", 0)
-        l2_rfo_hits = data.get("l2_rfo_hits", 0)
-        l2_rfo_misses = data.get("l2_rfo_misses", 0)
-
-        data["l2_total_writes"] = l2_rfo_total
-        data["l1d_store_misses"] = l2_rfo_total
-
-        if l2_rfo_total > 0:
-            data["l2_write_hits"] = l2_rfo_hits
-            data["l2_write_misses"] = l2_rfo_misses
-            data["l2_write_hit_rate"] = _safe_div(l2_rfo_hits, l2_rfo_total)
-            data["l2_write_miss_rate"] = _safe_div(l2_rfo_misses, l2_rfo_total)
-        else:
-            data["l2_write_hits"] = 0
-            data["l2_write_misses"] = 0
-            data["l2_write_hit_rate"] = 0.0
-            data["l2_write_miss_rate"] = 0.0
-
-        # L3/LLC Cache
-        llc_loads = data.get("llc_loads", 0)
-        llc_load_misses = data.get("llc_load_misses", 0)
-        llc_stores = data.get("llc_stores", 0)
-
-        if l2_load_misses > 0:
-            data["l3_total_reads"] = l2_load_misses
-        else:
-            data["l3_total_reads"] = llc_loads
-
-        if l2_rfo_misses > 0:
-            data["l3_total_writes"] = l2_rfo_misses
-        else:
-            data["l3_total_writes"] = llc_stores
-
-        l3_hits = data.get("l3_hits", 0)
-        l3_misses = data.get("l3_misses", 0)
-
-        if l3_hits > 0 or l3_misses > 0:
-            data["l3_read_hits"] = l3_hits
-            data["l3_read_misses"] = l3_misses
-            l3_total = l3_hits + l3_misses
-            data["l3_read_hit_rate"] = _safe_div(l3_hits, l3_total)
-            data["l3_read_miss_rate"] = _safe_div(l3_misses, l3_total)
-        elif llc_loads > 0:
-            data["l3_read_hits"] = llc_loads - llc_load_misses
-            data["l3_read_misses"] = llc_load_misses
-            data["l3_read_hit_rate"] = _safe_div(llc_loads - llc_load_misses, llc_loads)
-            data["l3_read_miss_rate"] = _safe_div(llc_load_misses, llc_loads)
-        else:
-            data["l3_read_hits"] = 0
-            data["l3_read_misses"] = 0
-            data["l3_read_hit_rate"] = 0.0
-            data["l3_read_miss_rate"] = 0.0
-
-        # DRAM
-        if l3_misses > 0:
-            data["dram_total_reads"] = l3_misses
-        else:
-            data["dram_total_reads"] = llc_load_misses
-
-        dram_local = data.get("dram_local", 0) or data.get("dram_local_demand", 0)
-        dram_remote = data.get("dram_remote", 0) or data.get("dram_remote_demand", 0)
-        data["dram_local_reads"] = dram_local
-        data["dram_remote_reads"] = dram_remote
-
-        if dram_local > 0 or dram_remote > 0:
-            total_dram = dram_local + dram_remote
-            data["dram_local_ratio"] = _safe_div(dram_local, total_dram)
-            data["dram_remote_ratio"] = _safe_div(dram_remote, total_dram)
-
-        # Bandwidth
-        l1_to_l2_load_bytes = l1d_load_misses * CACHE_LINE_SIZE
-        l1_to_l2_store_bytes = l2_rfo_total * CACHE_LINE_SIZE
-        data["l1_to_l2_bytes"] = l1_to_l2_load_bytes + l1_to_l2_store_bytes
-        data["l1_to_l2_read_bytes"] = l1_to_l2_load_bytes
-        data["l1_to_l2_write_bytes"] = l1_to_l2_store_bytes
-
-        l2_to_l3_load_bytes = l2_load_misses * CACHE_LINE_SIZE if l2_load_misses > 0 else 0
-        l2_to_l3_store_bytes = l2_rfo_misses * CACHE_LINE_SIZE if l2_rfo_misses > 0 else 0
-        data["l2_to_l3_bytes"] = l2_to_l3_load_bytes + l2_to_l3_store_bytes
-        data["l2_to_l3_read_bytes"] = l2_to_l3_load_bytes
-        data["l2_to_l3_write_bytes"] = l2_to_l3_store_bytes
-
-        data["l3_to_dram_bytes"] = data["dram_total_reads"] * CACHE_LINE_SIZE
-
-        # General metrics
-        cycles = data.get("cycles", 0)
-        instructions = data.get("instructions", 0)
-        time_elapsed = data.get("time_elapsed", 0.0)
-
-        data["ipc"] = _safe_div(instructions, cycles)
-        data["cpi"] = _safe_div(cycles, instructions)
-        data["l1d_mpki"] = _safe_div(l1d_load_misses, instructions) * 1000
-        data["llc_mpki"] = _safe_div(llc_load_misses, instructions) * 1000
-
-        if time_elapsed > 0:
-            data["l1_to_l2_bandwidth"] = data["l1_to_l2_bytes"] / time_elapsed
-            data["l3_to_dram_bandwidth"] = data["l3_to_dram_bytes"] / time_elapsed
-
-    def get_level_summary(self, level):
-        """Get a summary of metrics for a specific memory level."""
-        level = level.lower()
-        summary = {}
-
-        if level == "l1" or level == "l1d":
-            summary = {
-                "total_reads": self.data.get("l1d_total_reads", 0),
-                "total_writes": self.data.get("l1d_total_writes", 0),
-                "read_hits": self.data.get("l1d_read_hits", 0),
-                "read_misses": self.data.get("l1d_load_misses", 0),
-                "hit_rate": self.data.get("l1d_read_hit_rate", 0.0),
-                "miss_rate": self.data.get("l1d_read_miss_rate", 0.0),
-                "mpki": self.data.get("l1d_mpki", 0.0),
-            }
-        elif level == "l2":
-            summary = {
-                "total_reads": self.data.get("l2_total_reads", 0),
-                "total_writes": self.data.get("l2_total_writes", 0),
-                "read_hits": self.data.get("l2_read_hits", 0),
-                "read_misses": self.data.get("l2_read_misses", 0),
-                "hit_rate": self.data.get("l2_read_hit_rate", 0.0),
-                "miss_rate": self.data.get("l2_read_miss_rate", 0.0),
-            }
-        elif level == "l3" or level == "llc":
-            summary = {
-                "total_reads": self.data.get("l3_total_reads", 0),
-                "total_writes": self.data.get("l3_total_writes", 0),
-                "read_hits": self.data.get("l3_read_hits", 0),
-                "read_misses": self.data.get("l3_read_misses", 0),
-                "hit_rate": self.data.get("l3_read_hit_rate", 0.0),
-                "miss_rate": self.data.get("l3_read_miss_rate", 0.0),
-                "mpki": self.data.get("llc_mpki", 0.0),
-            }
-        elif level == "dram" or level == "memory":
-            summary = {
-                "total_reads": self.data.get("dram_total_reads", 0),
-                "local_reads": self.data.get("dram_local_reads", 0),
-                "remote_reads": self.data.get("dram_remote_reads", 0),
-                "local_ratio": self.data.get("dram_local_ratio", 0.0),
-                "bandwidth_bytes": self.data.get("l3_to_dram_bytes", 0),
-            }
-
-        return summary
-
     def print_summary(self):
-        """Print a formatted summary of all memory hierarchy metrics."""
-        print("\n" + "=" * 70)
-        print("MEMORY HIERARCHY SUMMARY")
-        print("=" * 70)
-
-        print(f"\nGeneral:")
-        print(f"  Instructions:     {self.data.get('instructions', 0):,}")
-        print(f"  Cycles:           {self.data.get('cycles', 0):,}")
-        print(f"  IPC:              {self.data.get('ipc', 0):.3f}")
-        print(f"  Time Elapsed:     {self.data.get('time_elapsed', 0):.3f}s")
-
-        print(f"\nL1 Data Cache:")
-        print(f"  Total Reads:      {self.data.get('l1d_total_reads', 0):,}")
-        print(f"  Total Writes:     {self.data.get('l1d_total_writes', 0):,}")
-        print(f"  Read Hits:        {self.data.get('l1d_read_hits', 0):,}")
-        print(f"  Read Misses:      {self.data.get('l1d_load_misses', 0):,}")
-        print(f"  Hit Rate:         {self.data.get('l1d_read_hit_rate', 0) * 100:.2f}%")
-        print(f"  MPKI:             {self.data.get('l1d_mpki', 0):.2f}")
-
-        print(f"\nL2 Cache:")
-        print(f"  Total Reads:      {self.data.get('l2_total_reads', 0):,}")
-        print(f"  Total Writes:     {self.data.get('l2_total_writes', 0):,}")
-        if self.data.get('l2_read_hits', 0) > 0 or self.data.get('l2_read_misses', 0) > 0:
-            print(f"  Read Hits:        {self.data.get('l2_read_hits', 0):,}")
-            print(f"  Read Misses:      {self.data.get('l2_read_misses', 0):,}")
-            print(f"  Hit Rate:         {self.data.get('l2_read_hit_rate', 0) * 100:.2f}%")
-
-        print(f"\nL3/LLC Cache:")
-        print(f"  Total Reads:      {self.data.get('l3_total_reads', 0):,}")
-        print(f"  Total Writes:     {self.data.get('l3_total_writes', 0):,}")
-        print(f"  Read Hits:        {self.data.get('l3_read_hits', 0):,}")
-        print(f"  Read Misses:      {self.data.get('l3_read_misses', 0):,}")
-        print(f"  Hit Rate:         {self.data.get('l3_read_hit_rate', 0) * 100:.2f}%")
-
-        print(f"\nDRAM:")
-        print(f"  Total Reads:      {self.data.get('dram_total_reads', 0):,}")
-        if self.data.get('dram_local_reads', 0) > 0 or self.data.get('dram_remote_reads', 0) > 0:
-            print(f"  Local Reads:      {self.data.get('dram_local_reads', 0):,}")
-            print(f"  Remote Reads:     {self.data.get('dram_remote_reads', 0):,}")
-            print(f"  Local Ratio:      {self.data.get('dram_local_ratio', 0) * 100:.2f}%")
-
-        print(f"\nBandwidth Estimates:")
-        print(f"  L1 -> L2:         {self.data.get('l1_to_l2_bytes', 0) / 1e6:.2f} MB")
-        print(f"  L2 -> L3:         {self.data.get('l2_to_l3_bytes', 0) / 1e6:.2f} MB")
-        print(f"  L3 -> DRAM:       {self.data.get('l3_to_dram_bytes', 0) / 1e6:.2f} MB")
-
-        print("=" * 70 + "\n")
-
+        """Print raw counters collected for the requested level."""
+        print(f"\n{'='*50}")
+        print(f"RAW PERF COUNTERS (level={self.level}, arch={self.arch})")
+        print(f"{'='*50}")
+        for key, value in self.data.items():
+            if key not in ["level", "time_elapsed"]:
+                print(f"  {key}: {value:,}")
+        print(f"  time_elapsed: {self.data.get('time_elapsed', 0):.6f}s")
+        
     @classmethod
     def required_profiling_args(cls):
         """Define required arguments for profiling."""
@@ -439,15 +341,15 @@ class PerfProfilers(FrontendInterface):
         return [
             {
                 "name": "arch",
-                "help": "CPU architecture: generic, amd, or intel",
                 "choices": SUPPORTED_ARCHS,
-                "default": "generic",
+                "default": "intel",
+                "help": "CPU architecture: intel or amd"
             },
             {
                 "name": "repeat",
-                "help": "Number of measurement repeats (default: 3)",
                 "type": int,
                 "default": 3,
+                "help": "Number of measurement repeats"
             },
         ]
 

@@ -7,7 +7,7 @@ SPEC_ROOT="/home/gwu28/spec2017"
 MAIN_SCRIPT="/home/gwu28/MemSysExplorer/apps/main.py"
 CMD_DIR="./commands"
 WORKDIR="/home/gwu28/MemSysExplorer/apps/benchmarks/cpu2017/spec_runs_2"
-FILTER_DIR="intrate"   # One of: intrate, intspeed, fprate, fpspeed
+FILTER_DIR="fpspeed"   # One of: intrate, intspeed, fprate, fpspeed
 RUN_TYPE="refrate"     # One of: refrate, testrate, trainrate
 mkdir -p "$WORKDIR"
 
@@ -33,6 +33,12 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
         EXE_PATH="$EXE_DIR/bwaves_r_base.none"
     elif [[ "$BENCH_ID" == "638.imagick_s" ]]; then
         EXE_PATH="$EXE_DIR/imagick_s_base.none"
+    elif [[ "$BENCH_ID" == "621.wrf_s" ]]; then
+        EXE_PATH="$EXE_DIR/wrf_s_base.none"
+    elif [[ "$BENCH_ID" == "521.wrf_r" ]]; then
+        EXE_PATH="$EXE_DIR/wrf_s_base.none"
+    elif [[ "$BENCH_ID" == "527.cam4_r" ]]; then
+        EXE_PATH="$EXE_DIR/cam4_r_base.none"
     else
         EXE_PATH=$(find "$EXE_DIR" -maxdepth 1 -type f -executable | head -n 1)
     fi
@@ -70,7 +76,7 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
     echo "#SBATCH --job-name=${BENCH_ID}" >> "$RUN_SH"
     echo "#SBATCH --partition=cpu-q" >> "$RUN_SH"
     echo "#SBATCH --cpus-per-task=1" >> "$RUN_SH"
-    echo "#SBATCH --time=04:00:00" >> "$RUN_SH"
+    echo "#SBATCH --time=10:00:00" >> "$RUN_SH"
     echo "#SBATCH --output=${BENCH_ID}.out" >> "$RUN_SH"
     echo "#SBATCH --error=${BENCH_ID}.err" >> "$RUN_SH"
     echo "# Generated from $CMD_FILE" >> "$RUN_SH"
@@ -194,6 +200,64 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
         echo "Copying 3j1n"
         cp -r "{$COPY_DIR}/3j1n" "${RUN_DIR}"
     fi
+    if [[ "$BENCH_ID" == "621.wrf_s" || "$BENCH_ID" == "521.wrf_r" ]]; then
+        echo "Copying namelist.input"
+        echo "Copying wrfinput_d01"
+        echo "Copying LANDUSE.TBL"
+        echo "Copying RRTM_DATA"
+        echo "Copying VEGPARM.TBL"
+        echo "Copying SOILPARM.TBL"
+        echo "Copying GENPARM.TBL"
+        echo "Copying wrfbdy_d01"
+        cp "{$COPY_DIR}/namelist.input" "${RUN_DIR}"
+        cp "{$COPY_DIR}/wrfinput_d01" "${RUN_DIR}"
+        cp "{$COPY_DIR}/LANDUSE.TBL" "${RUN_DIR}"
+        cp "{$COPY_DIR}/RRTM_DATA" "${RUN_DIR}"
+        cp "{$COPY_DIR}/VEGPARM.TBL" "${RUN_DIR}"
+        cp "{$COPY_DIR}/SOILPARM.TBL" "${RUN_DIR}"
+        cp "{$COPY_DIR}/GENPARM.TBL" "${RUN_DIR}"
+        cp "{$COPY_DIR}/wrfbdy_d01" "${RUN_DIR}"
+    fi
+    if [[ "$BENCH_ID" == "527.cam4_r" || "$BENCH_ID" == "627.cam4_s" ]]; then
+        echo "Copying cami_0000-01-01_1.9x2.5_L26_APE_c080203.nc"
+        echo "Copying USGS-gtopo30_1.9x2.5_remap_c050602.nc"
+        echo "Copying sulfate_camrt_c080918.nc"
+        echo "Copying dust1_camrt_c080918.nc"
+        echo "Copying dust2_camrt_c080918.nc"
+        echo "Copying dust3_camrt_c080918.nc"
+        echo "Copying dust4_camrt_c080918.nc"
+        echo "Copying bcpho_camrt_c080918.nc"
+        echo "Copying bcphi_camrt_c080918.nc"
+        echo "Copying ocphi_camrt_c080918.nc "
+        echo "Copying ocpho_camrt_c080918.nc "
+        echo "Copying ssam_camrt_c080918.nc"
+        echo "Copying sscm_camrt_c080918.nc"
+        echo "Copying ozone_1.9x2.5_L26_2000clim_c091112.nc"
+        echo "Copying aero_1.9x2.5_L26_2000clim_c091112.nc"
+        echo "Copying abs_ems_factors_fastvx.c030508.nc"
+        echo "Copying clim_p_trop.nc"
+        echo "Copying drv_in"
+        echo "Copying atm_in"
+        cp "{$COPY_DIR}/cami_0000-01-01_1.9x2.5_L26_APE_c080203.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/USGS-gtopo30_1.9x2.5_remap_c050602.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/sulfate_camrt_c080918.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/dust1_camrt_c080918.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/dust2_camrt_c080918.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/dust3_camrt_c080918.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/dust4_camrt_c080918.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/bcpho_camrt_c080918.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/bcphi_camrt_c080918.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/ocphi_camrt_c080918.nc c" "${RUN_DIR}"
+        cp "{$COPY_DIR}/ocpho_camrt_c080918.nc " "${RUN_DIR}"
+        cp "{$COPY_DIR}/ssam_camrt_c080918.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/sscm_camrt_c080918.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/ozone_1.9x2.5_L26_2000clim_c091112.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/aero_1.9x2.5_L26_2000clim_c091112.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/abs_ems_factors_fastvx.c030508.nc" "${RUN_DIR}"        
+        cp "{$COPY_DIR}/clim_p_trop.nc" "${RUN_DIR}"
+        cp "{$COPY_DIR}/drv_in" "${RUN_DIR}"
+        cp "{$COPY_DIR}/atm_in" "${RUN_DIR}"
+    fi
 
     chmod +x "$RUN_SH"
 
@@ -201,7 +265,7 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
     cd "$RUN_DIR"
     echo "   → Entering dir: $(pwd)"
     echo "   → Executing ${BENCH_ID} (${RUN_TYPE}) with Perf..."
-    sbatch "$RUN_SH"
+    #sbatch "$RUN_SH"
     echo "   → Finished ${BENCH_ID} (${RUN_TYPE}) with Perf..."
 
     cd - > /dev/null

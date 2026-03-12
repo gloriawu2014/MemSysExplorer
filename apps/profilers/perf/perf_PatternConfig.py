@@ -1,154 +1,149 @@
 from profilers.PatternConfig import PatternConfig
 
 class PerfConfig(PatternConfig):
-    @classmethod
-    def populating(cls, report_data, metadata=None, level="custom"):
+    def __init__(self, **kwargs):
         """
-        Populate the PatternConfig attributes using Perf raw data.
+        Initialize PerfConfig with additional cache hit/miss fields.
+
+        Parameters
+        ----------
+        **kwargs : dict
+            Configuration parameters, including cache hit/miss stats
+        """
+        # Extract cache hit/miss stats before calling parent init
+        self.load_hits = kwargs.pop('load_hits', 0)
+        self.load_misses = kwargs.pop('load_misses', 0)
+        self.store_hits = kwargs.pop('store_hits', 0)
+        self.store_misses = kwargs.pop('store_misses', 0)
+
+        # Call parent constructor
+        super().__init__(**kwargs)
+
+    @classmethod
+    def populating(cls, report_data, metadata=None):
+        """
+        Normalize raw perf counters into standard cascade metrics.
+
+        Works with ONLY the raw counters available for the specified level.
+        No cross-level dependencies required.
 
         Parameters
         ----------
         report_data : dict
-            Dictionary containing raw event counts and derived metrics from perf_profilers.py.
-            Expected keys include:
+            Dictionary containing raw event counts from perf_profilers.py.
+            Expected keys by level:
               - L1: l1d_loads, l1d_load_misses, l1d_stores, l1i_load_misses
-              - L2 loads: l2_load_hits, l2_load_misses, l2_total_reads
-              - L2 stores (RFO): l2_rfo_total, l2_rfo_hits, l2_rfo_misses, l2_total_writes
-              - L3/LLC: l3_hits, l3_misses, llc_loads, llc_load_misses
-              - DRAM: dram_total_reads, dram_local, dram_remote
-              - General: time_elapsed
+              - L2: l2_load_hits, l2_load_misses, l2_rfo_total, l2_rfo_hits, l2_rfo_misses
+              - L3: l3_hits, l3_misses, llc_loads, llc_load_misses, llc_stores
+              - DRAM: dram_local, dram_remote, dram_write_local, dram_write_remote
+              - Always: time_elapsed, level
         metadata : BaseMetadata, optional
             Optional system metadata.
-        level : str
-            Cache/memory level to focus on: "l1", "l2", "l3", or "dram".
 
         Returns
         -------
         PerfConfig
-            An initialized config object containing read/write frequencies and totals.
+            An initialized config object with standard metrics:
+            total_reads, total_writes, load_hits, load_misses, store_hits, store_misses
         """
-        # =================================================================
-        # Extract raw metrics from perf_profilers.py output
-        # =================================================================
+        # Get level from data (included by perf_profilers)
+        level = report_data.get("level", "l2")
+        time_elapsed = report_data.get("time_elapsed", 0)
 
-        # L1 Data Cache
-        l1d_loads = report_data.get('l1d_loads', 0)
-        l1d_load_misses = report_data.get('l1d_load_misses', 0)
-        l1d_stores = report_data.get('l1d_stores', 0)
-        l1i_load_misses = report_data.get('l1i_load_misses', 0)
-
-        # L2 Cache - Loads (from derived metrics)
-        l2_total_reads = report_data.get('l2_total_reads', 0)
-        l2_read_hits = report_data.get('l2_read_hits', 0)
-        l2_read_misses = report_data.get('l2_read_misses', 0)
-
-        # L2 Cache - Stores via RFO (from derived metrics)
-        l2_total_writes = report_data.get('l2_total_writes', 0)
-        l2_write_hits = report_data.get('l2_write_hits', 0)
-        l2_write_misses = report_data.get('l2_write_misses', 0)
-
-        # Also check raw RFO events directly
-        l2_rfo_total = report_data.get('l2_rfo_total', 0)
-        if l2_total_writes == 0 and l2_rfo_total > 0:
-            l2_total_writes = l2_rfo_total
-
-        # L3/LLC Cache
-        l3_total_reads = report_data.get('l3_total_reads', 0)
-        l3_total_writes = report_data.get('l3_total_writes', 0)
-        l3_read_hits = report_data.get('l3_read_hits', 0)
-        l3_read_misses = report_data.get('l3_read_misses', 0)
-        llc_loads = report_data.get('llc_loads', 0)
-        llc_load_misses = report_data.get('llc_load_misses', 0)
-
-        # DRAM
-        dram_total_reads = report_data.get('dram_total_reads', 0)
-        dram_local_reads = report_data.get('dram_local_reads', 0)
-        dram_remote_reads = report_data.get('dram_remote_reads', 0)
-
-        # Timing
-        time_elapsed = report_data.get('time_elapsed', 0)
-
-        # =================================================================
-        # Initialize outputs
-        # =================================================================
-        read_freq = 0
-        write_freq = 0
+        # Initialize standard outputs
         total_reads = 0
         total_writes = 0
-        total_reads_d = 0
-        total_reads_i = 0
-        total_writes_d = 0
-        total_writes_i = 0
+        load_hits = 0
+        load_misses = 0
+        store_hits = 0
+        store_misses = 0
 
         # =================================================================
-        # Level-specific calculations
+        # Map raw counters to standard metrics based on level
         # =================================================================
         if level == "l1":
-            # L1 level: direct loads/stores
-            total_reads_d = l1d_loads
-            total_reads_i = l1i_load_misses  # Instruction fetches that missed L1I
-            total_reads = total_reads_d + total_reads_i
+            # Raw counters: l1d_loads, l1d_load_misses, l1d_stores, l1i_load_misses
+            l1d_loads = report_data.get("l1d_loads", 0)
+            l1d_load_misses = report_data.get("l1d_load_misses", 0)
+            l1d_stores = report_data.get("l1d_stores", 0)
 
-            total_writes_d = l1d_stores
-            total_writes_i = 0
-            total_writes = total_writes_d
-
-            read_freq = total_reads / time_elapsed if time_elapsed else 0
-            write_freq = total_writes / time_elapsed if time_elapsed else 0
+            total_reads = l1d_loads
+            total_writes = l1d_stores
+            load_misses = l1d_load_misses
+            load_hits = max(0, total_reads - load_misses)
+            # L1 store misses not directly available without L2 RFO data
+            store_hits = total_writes
+            store_misses = 0
 
         elif level == "l2":
-            # L2 level: sees L1 misses (loads) and RFO requests (stores)
-            # Total reads at L2 = L1 load misses (cascade rule)
-            total_reads = l2_total_reads if l2_total_reads > 0 else (l1d_load_misses + l1i_load_misses)
+            # Raw counters: l2_load_hits, l2_load_misses, l2_rfo_total, l2_rfo_hits, l2_rfo_misses
+            load_hits = report_data.get("l2_load_hits", 0)
+            load_misses = report_data.get("l2_load_misses", 0)
+            total_reads = load_hits + load_misses
 
-            # Total writes at L2 = RFO requests = L1 store misses equivalent
-            total_writes = l2_total_writes
-
-            # Breakdown
-            total_reads_d = l2_read_hits + l2_read_misses if (l2_read_hits + l2_read_misses) > 0 else l1d_load_misses
-            total_reads_i = l1i_load_misses
-            total_writes_d = l2_write_hits + l2_write_misses if (l2_write_hits + l2_write_misses) > 0 else l2_total_writes
-            total_writes_i = 0
-
-            read_freq = total_reads / time_elapsed if time_elapsed else 0
-            write_freq = total_writes / time_elapsed if time_elapsed else 0
+            # RFO counters (Intel has these, AMD may not)
+            store_hits = report_data.get("l2_rfo_hits", 0)
+            store_misses = report_data.get("l2_rfo_misses", 0)
+            total_writes = report_data.get("l2_rfo_total", 0)
+            # Fallback if rfo_total missing but hits/misses present
+            if total_writes == 0:
+                total_writes = store_hits + store_misses
 
         elif level == "l3":
-            # L3/LLC level: sees L2 misses (cascade rule)
-            # Use derived l3_total_reads if available, otherwise fall back
-            if l3_total_reads > 0:
-                total_reads = l3_total_reads
-            elif llc_loads > 0:
-                total_reads = llc_loads
-            elif l2_read_misses > 0:
-                total_reads = l2_read_misses
+            # Raw counters: l3_hits, l3_misses, llc_loads, llc_load_misses, llc_stores
+            l3_hits = report_data.get("l3_hits", 0)
+            l3_misses = report_data.get("l3_misses", 0)
+            llc_loads = report_data.get("llc_loads", 0)
+            llc_load_misses = report_data.get("llc_load_misses", 0)
+            llc_stores = report_data.get("llc_stores", 0)
+
+            # Prefer specific l3_hits/l3_misses, fallback to LLC generic
+            if l3_hits > 0 or l3_misses > 0:
+                load_hits = l3_hits
+                load_misses = l3_misses
+                total_reads = l3_hits + l3_misses
             else:
-                total_reads = 0
+                load_misses = llc_load_misses
+                load_hits = max(0, llc_loads - llc_load_misses)
+                total_reads = llc_loads
 
-            # L3 writes = L2 RFO misses (stores that missed L2)
-            total_writes = l3_total_writes
-
-            # Breakdown
-            total_reads_d = l3_read_hits + l3_read_misses if (l3_read_hits + l3_read_misses) > 0 else total_reads
-            total_reads_i = 0
-            total_writes_d = total_writes
-            total_writes_i = 0
-
-            read_freq = total_reads / time_elapsed if time_elapsed else 0
-            write_freq = total_writes / time_elapsed if time_elapsed else 0
+            total_writes = llc_stores
+            store_hits = llc_stores  # No direct miss counter for stores
+            store_misses = 0
 
         elif level == "dram":
-            # DRAM level: sees LLC/L3 misses (cascade rule)
-            total_reads = dram_total_reads if dram_total_reads > 0 else llc_load_misses
-            total_writes = 0  # Write-back data not directly measured by these events
+            # Raw counters: dram_local, dram_remote, dram_write_local, dram_write_remote
+            dram_local = report_data.get("dram_local", 0)
+            dram_remote = report_data.get("dram_remote", 0)
+            dram_write_local = report_data.get("dram_write_local", 0)
+            dram_write_remote = report_data.get("dram_write_remote", 0)
 
-            total_reads_d = dram_local_reads + dram_remote_reads if (dram_local_reads + dram_remote_reads) > 0 else total_reads
-            total_reads_i = 0
-            total_writes_d = 0
-            total_writes_i = 0
+            total_reads = dram_local + dram_remote
+            total_writes = dram_write_local + dram_write_remote
 
-            read_freq = total_reads / time_elapsed if time_elapsed else 0
-            write_freq = total_writes / time_elapsed if time_elapsed else 0
+            # DRAM is final level - all accesses are served
+            load_hits = total_reads
+            load_misses = 0
+            store_hits = total_writes
+            store_misses = 0
+
+        # =================================================================
+        # Compute rates
+        # =================================================================
+        read_freq = total_reads / time_elapsed if time_elapsed > 0 else 0
+        write_freq = total_writes / time_elapsed if time_elapsed > 0 else 0
+
+        # Unit overrides
+        unit_overrides = {
+            "read_freq": "count/s",
+            "write_freq": "count/s",
+            "total_reads": "count",
+            "total_writes": "count",
+            "load_hits": "count",
+            "load_misses": "count",
+            "store_hits": "count",
+            "store_misses": "count"
+        }
 
         return cls(
             exp_name="PerfProfilers",
@@ -157,11 +152,17 @@ class PerfConfig(PatternConfig):
             total_writes=total_writes,
             read_freq=read_freq,
             write_freq=write_freq,
-            total_reads_d=total_reads_d,
-            total_reads_i=total_reads_i,
-            total_writes_d=total_writes_d,
-            total_writes_i=total_writes_i,
-            read_size=64,  # Cache line size (64 bytes)
+            total_reads_d=total_reads,
+            total_reads_i=0,
+            total_writes_d=total_writes,
+            total_writes_i=0,
+            read_size=64,
             write_size=64,
-            metadata=metadata
+            execution_time=time_elapsed,
+            load_hits=load_hits,
+            load_misses=load_misses,
+            store_hits=store_hits,
+            store_misses=store_misses,
+            metadata=metadata,
+            unit=unit_overrides
         )

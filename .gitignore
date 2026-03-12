@@ -4,3 +4,4 @@ apps/benchmarks/cpu2017/spec_runs
 apps/benchmarks/cpu2017/spec_runs_2
 apps/benchmarks/cpu2017/perf_l1_data
 apps/benchmarks/cpu2017/copy_json.py
+apps/benchmarks/cpu2017/collected_results/
