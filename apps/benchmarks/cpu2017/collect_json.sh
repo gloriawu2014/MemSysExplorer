@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------- Configurable Paths --------
-DEST_ROOT="./collected_results"
+DEST_ROOT="./collected_results_2"
 SPEC_ROOT_1="/home/gwu28/spec2017"
 SPEC_ROOT_2="/home/gwu28/cpu2017"
 LEVELS=("l1" "l3")

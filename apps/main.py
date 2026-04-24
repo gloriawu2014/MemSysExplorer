@@ -93,7 +93,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Profiling Tool Driver")
     parser.add_argument("-p", "--profiler", required=True, help="Select the profiler to use.")
-    parser.add_argument("-a", "--action", required=True, choices=["profiling", "extract_metrics", "both"])
+    parser.add_argument("--action", required=True, choices=["profiling", "extract_metrics", "both"])
 
     # Parse known to get profiler/action
     initial_args, _ = parser.parse_known_args()

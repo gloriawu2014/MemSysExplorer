@@ -307,7 +307,7 @@ class PerfProfilers(FrontendInterface):
                 value = int(match.group(1).replace(',', '')) if match else 0
                 self.data[metric_key] = value
 
-            time_match = re.search(r"([\d.]+)\s+seconds time elapsed", toparse)
+            time_match = re.search(r"([\d.]+)\s+(?:\+\-\s+[\d.]+\s+)?seconds time elapsed", toparse)
             self.data["time_elapsed"] = float(time_match.group(1)) if time_match else 0.0
 
             # Store the level for PerfConfig to use
