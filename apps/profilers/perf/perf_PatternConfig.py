@@ -16,6 +16,11 @@ class PerfConfig(PatternConfig):
         self.store_hits = kwargs.pop('store_hits', 0)
         self.store_misses = kwargs.pop('store_misses', 0)
 
+        # Preserve raw L2 counters so they are included in JSON output
+        self.l2_pf_hit_l3 = kwargs.pop('l2_pf_hit_l3', 0)
+        self.l2_pf_miss_l3 = kwargs.pop('l2_pf_miss_l3', 0)
+        self.l2_cache_accesses_from_dc_misses = kwargs.pop('l2_cache_accesses_from_dc_misses', 0)
+
         # Call parent constructor
         super().__init__(**kwargs)
 
@@ -58,6 +63,11 @@ class PerfConfig(PatternConfig):
         store_hits = 0
         store_misses = 0
 
+        # Default raw L2 event fields for JSON output
+        l2_pf_hit_l3 = 0
+        l2_pf_miss_l3 = 0
+        l2_cache_accesses_from_dc_misses = 0
+
         # =================================================================
         # Map raw counters to standard metrics based on level
         # =================================================================
@@ -88,6 +98,11 @@ class PerfConfig(PatternConfig):
             # Fallback if rfo_total missing but hits/misses present
             if total_writes == 0:
                 total_writes = store_hits + store_misses
+
+            # Preserve additional L2 event counters for JSON output
+            l2_pf_hit_l3 = report_data.get("l2_pf_hit_l3", 0)
+            l2_pf_miss_l3 = report_data.get("l2_pf_miss_l3", 0)
+            l2_cache_accesses_from_dc_misses = report_data.get("l2_cache_accesses_from_dc_misses", 0)
 
         elif level == "l3":
             # Raw counters: l3_hits, l3_misses, llc_loads, llc_load_misses, llc_stores
@@ -163,6 +178,9 @@ class PerfConfig(PatternConfig):
             load_misses=load_misses,
             store_hits=store_hits,
             store_misses=store_misses,
+            l2_pf_hit_l3=l2_pf_hit_l3,
+            l2_pf_miss_l3=l2_pf_miss_l3,
+            l2_cache_accesses_from_dc_misses=l2_cache_accesses_from_dc_misses,
             metadata=metadata,
             unit=unit_overrides
         )

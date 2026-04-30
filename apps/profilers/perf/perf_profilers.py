@@ -70,6 +70,10 @@ PERF_FORMULAS = {
             "intel": None,
             "amd": "l2_pf_miss_l2_l3:u",
         },
+        "l2_cache_accesses_from_dc_misses": {
+            "intel": None,
+            "amd": "l2_cache_accesses_from_dc_misses:u",
+        },
     },
     "l3": {
         "l3_hits": {

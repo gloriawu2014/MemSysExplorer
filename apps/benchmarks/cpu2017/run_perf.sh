@@ -5,7 +5,7 @@
 # -------- Configurable Paths --------
 MAIN_SCRIPT="/home/gwu28/MemSysExplorer/apps/main.py"
 CMD_DIR="/home/gwu28/MemSysExplorer/apps/benchmarks/cpu2017/commands"
-FILTER_DIR="intspeed"   # One of: intrate, intspeed, fprate, fpspeed
+FILTER_DIR="fpspeed"   # One of: intrate, intspeed, fprate, fpspeed
 RUN_TYPE="refrate"     # One of: refrate, testrate, trainrate
 LEVEL="l3"             # One of: l1, l2, l3
 SPEC_ROOT="/home/gwu28/spec2017"
@@ -21,7 +21,7 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
 
     BENCH_ID="${CMD_NAME}"
     BENCH_DIR="$SPEC_ROOT/benchspec/CPU/$BENCH_ID"
-    EXE_DIR="$BENCH_DIR/exe"
+    #EXE_DIR="$BENCH_DIR/exe"
 
     if [[ "$FILTER_DIR" == "intrate" || "$FILTER_DIR" == "fprate" ]]; then
         COPY="$BENCH_DIR/run/run_base_refrate_none.0000"
@@ -30,8 +30,9 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
     fi
 
     cd "$BENCH_DIR/run"
-    COPY_DIR="$BENCH_DIR/run/${LEVEL}_O3"
+    COPY_DIR="$BENCH_DIR/run/${LEVEL}_O1"
     cp -r "$COPY" "$COPY_DIR"
+    EXE_DIR="$COPY_DIR"
 
     # Locate executable
     if [[ "$BENCH_ID" == "625.x264_s" ]]; then 
@@ -48,11 +49,11 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
         EXE_PATH="$EXE_DIR/cam4_r_base.none"
     elif [[ "$BENCH_ID" == "525.x264_r" ]]; then
 	EXE_PATH="$EXE_DIR/x264_r_base.none"
-    elif [[ "BENCH_ID" == "511.povray_r" ]]; then
+    elif [[ "$BENCH_ID" == "511.povray_r" ]]; then
 	EXE_PATH="$EXE_DIR/povray_r_base.none"
-    elif [[ "BENCH_ID" == "526.blender_r" ]]; then
+    elif [[ "$BENCH_ID" == "526.blender_r" ]]; then
 	EXE_PATH="$EXE_DIR/blender_r_base.none"
-    elif [[ "BENCH_ID" == "538.imagick_r" ]]; then
+    elif [[ "$BENCH_ID" == "538.imagick_r" ]]; then
 	EXE_PATH="$EXE_DIR/imagick_r_base.none"
     else
         EXE_PATH=$(find "$EXE_DIR" -maxdepth 1 -type f -executable | head -n 1)
