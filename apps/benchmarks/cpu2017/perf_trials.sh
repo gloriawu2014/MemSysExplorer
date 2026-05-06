@@ -4,8 +4,8 @@
 CMD_DIR="/home/gwu28/MemSysExplorer/apps/benchmarks/cpu2017/commands"
 FILTER_DIR="fpspeed"
 RUN_TYPE="refrate"
-LEVEL="l3"
-OPTIMIZATION="O3"
+LEVEL="l2"
+OPTIMIZATION="O1"
 SPEC_ROOT="/home/gwu28/spec2017"
 
 CMD_TYPE=$(echo "$RUN_TYPE" | sed 's/rate//')
@@ -56,7 +56,7 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
         echo "    → Moved memsys files"
     fi
 
-    rm -rf "$NEW_FOLDER"
+    #rm -rf "$NEW_FOLDER"
 
     # 4. Resubmit
     echo "    → Resubmitting $RUN_SH"

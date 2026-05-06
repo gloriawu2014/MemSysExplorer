@@ -9,6 +9,7 @@ FILTER_DIR="fpspeed"   # One of: intrate, intspeed, fprate, fpspeed
 RUN_TYPE="refrate"     # One of: refrate, testrate, trainrate
 LEVEL="l3"             # One of: l1, l2, l3
 SPEC_ROOT="/home/gwu28/spec2017"
+OPTIMIZATION="Ofast"
 
 CMD_TYPE=$(echo "$RUN_TYPE" | sed 's/rate//')  # refrate -> ref, etc.
 
@@ -30,7 +31,7 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
     fi
 
     cd "$BENCH_DIR/run"
-    COPY_DIR="$BENCH_DIR/run/${LEVEL}_O1"
+    COPY_DIR="$BENCH_DIR/run/${LEVEL}_${OPTIMIZATION}"
     cp -r "$COPY" "$COPY_DIR"
     EXE_DIR="$COPY_DIR"
 
