@@ -3,11 +3,11 @@
 # -------- Configurable Paths --------
 MAIN_SCRIPT="/home/gwu28/MemSysExplorer/apps/main.py"
 CMD_DIR="/home/gwu28/MemSysExplorer/apps/benchmarks/cpu2017/commands"
-FILTER_DIR="intspeed"
+FILTER_DIR="intrate"
 RUN_TYPE="refrate"
 LEVEL="l1"
 SPEC_ROOT="/home/gwu28/spec2017"
-OPTIMIZATION="O1"
+OPTIMIZATION="O2"
 
 CMD_TYPE=$(echo "$RUN_TYPE" | sed 's/rate//')
 
@@ -78,6 +78,7 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
     
     # Define the directory where files actually live
     RUN_DIR="$BENCH_DIR/run/${LEVEL}_${OPTIMIZATION}"
+    #CHECK_DIR="${RUN_DIR}/trial_2"
 
     # Check if directory exists before trying to enter
     if [ ! -d "$RUN_DIR" ]; then
@@ -93,7 +94,8 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
         OUT_FILES=$(grep "^python3" "$RUN_SH" | grep -oP '(?<!2)>+ \s*\K\S+' | grep -v "\.err$")
         
         for OUT_FILE in $OUT_FILES; do
-            FULL_PATH="${RUN_DIR}/$OUT_FILE"
+	        FULL_PATH="${RUN_DIR}/${OUT_FILE}"
+            #FULL_PATH="${CHECK_DIR}/$OUT_FILE"
             
             if [[ ! -f "$FULL_PATH" ]]; then continue; fi
 

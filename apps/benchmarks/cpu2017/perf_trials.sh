@@ -2,10 +2,10 @@
 
 # -------- Configurable Paths --------
 CMD_DIR="/home/gwu28/MemSysExplorer/apps/benchmarks/cpu2017/commands"
-FILTER_DIR="fpspeed"
+FILTER_DIR="intrate"
 RUN_TYPE="refrate"
-LEVEL="l2"
-OPTIMIZATION="O1"
+LEVEL="l3"
+OPTIMIZATION="O2"
 SPEC_ROOT="/home/gwu28/spec2017"
 
 CMD_TYPE=$(echo "$RUN_TYPE" | sed 's/rate//')
@@ -40,8 +40,8 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
 
     # 2. Check if there is actually work to move
     # This looks for strings ending in these extensions inside the shell script
-    TARGET_FILES=$(grep -oE "[^ ]+\.(out|err|log|cmp|txt)" "$RUN_SH" | sort -u)
-
+    #TARGET_FILES=$(grep -oE "[^ ]+\.(out|err|log|cmp|txt)" "$RUN_SH" | sort -u)
+    TARGET_FILES=$(grep "^python3" "$RUN_SH" | grep -oP '(?<!2)>+ \s*\K\S+' | grep -v "\.err$")
     # 3. Move the extracted files + any memsys files
     for FILE in $TARGET_FILES; do
         if [[ -f "$FILE" && "$FILE" != "$RUN_SH" ]]; then
@@ -57,6 +57,11 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
     fi
 
     #rm -rf "$NEW_FOLDER"
+
+    echo "    → Updating parameters in $RUN_SH"
+    sed -i -e 's|/home/gwu28/cpu2017|/home/gwu28/spec2017|g' \
+           -e 's/-p perf/--profiler perf/g' \
+           -e 's/-a both/--action both/g' "$RUN_SH"
 
     # 4. Resubmit
     echo "    → Resubmitting $RUN_SH"

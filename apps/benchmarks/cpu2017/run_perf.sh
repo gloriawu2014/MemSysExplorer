@@ -49,13 +49,25 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
     elif [[ "$BENCH_ID" == "527.cam4_r" ]]; then
         EXE_PATH="$EXE_DIR/cam4_r_base.none"
     elif [[ "$BENCH_ID" == "525.x264_r" ]]; then
-	EXE_PATH="$EXE_DIR/x264_r_base.none"
+	    EXE_PATH="$EXE_DIR/x264_r_base.none"
     elif [[ "$BENCH_ID" == "511.povray_r" ]]; then
-	EXE_PATH="$EXE_DIR/povray_r_base.none"
+	    EXE_PATH="$EXE_DIR/povray_r_base.none"
     elif [[ "$BENCH_ID" == "526.blender_r" ]]; then
-	EXE_PATH="$EXE_DIR/blender_r_base.none"
+	    EXE_PATH="$EXE_DIR/blender_r_base.none"
     elif [[ "$BENCH_ID" == "538.imagick_r" ]]; then
-	EXE_PATH="$EXE_DIR/imagick_r_base.none"
+	    EXE_PATH="$EXE_DIR/imagick_r_base.none"
+    elif [[ "$BENCH_ID" == "507.cactuBSSN_r" ]]; then
+        EXE_PATH="$EXE_DIR/cactusBSSN_r_base.none"
+    elif [[ "$BENCH_ID" == "508.namd_r" ]]; then
+        EXE_PATH="$EXE_DIR/namd_r_base.none"
+    elif [[ "$BENCH_ID" == "511.povray_r" ]]; then
+        EXE_PATH="$EXE_DIR/povray_r_base.none"
+    elif [[ "$BENCH_ID" == "619.lbm_s" ]]; then
+        EXE_PATH="$EXE_DIR/lbm_s_base.none"
+    elif [[ "$BENCH_ID" == "644.nab_s" ]]; then
+        EXE_PATH="$EXE_DIR/nab_s_base.none"
+    elif [[ "$BENCH_ID" == "519.lbm_r" ]]; then
+        EXE_PATH="$EXE_DIR/lbm_r_base.none"
     else
         EXE_PATH=$(find "$EXE_DIR" -maxdepth 1 -type f -executable | head -n 1)
     fi
