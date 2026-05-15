@@ -1,3 +1,4 @@
 __pycache__/
 apps/memsys*.json
-apps/benchmarks/cpu2017/O2_incorrect_read_freq/
+apps/benchmarks/cpu2017/collected_results/
+apps/benchmarks/cpu2017/perf_AMD_HPC_optimizations.tar.gz

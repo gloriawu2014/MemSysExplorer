@@ -2,7 +2,7 @@
 
 # -------- Configurable Paths --------
 CMD_DIR="/home/gwu28/MemSysExplorer/apps/benchmarks/cpu2017/commands"
-FILTER_DIR="intrate"
+FILTER_DIR="fpspeed"
 RUN_TYPE="refrate"
 LEVEL="l3"
 OPTIMIZATION="O2"
@@ -65,7 +65,7 @@ find "$CMD_DIR/$FILTER_DIR" -name "*.${CMD_TYPE}.cmd" | while read -r CMD_FILE; 
 
     # 4. Resubmit
     echo "    → Resubmitting $RUN_SH"
-    sbatch "$RUN_SH"
+    #sbatch "$RUN_SH"
 
     cd - > /dev/null
 done
